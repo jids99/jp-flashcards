@@ -1,0 +1,2701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>日本語 Flash Cards — Japanese Language Helper</title>
+  <meta name="description" content="Study Japanese hiragana, katakana, and kanji with interactive flash cards. Multiple difficulty levels and quiz mode with results tracking." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── DESIGN TOKENS ────────────────────────────────────────────── */
+    :root {
+      --bg:         #0d0d0f;
+      --bg2:        #13131a;
+      --surface:    #1a1a24;
+      --surface2:   #22222e;
+      --border:     rgba(255,255,255,0.07);
+      --border-h:   rgba(255,255,255,0.14);
+      --text:       #e8e8f0;
+      --text-dim:   #7a7a94;
+      --text-faint: #3e3e55;
+      --accent:     #c8a96e;
+      --accent-dim: rgba(200,169,110,0.12);
+      --accent-glow:rgba(200,169,110,0.25);
+      --red:        #e07070;
+      --red-dim:    rgba(224,112,112,0.12);
+      --green:      #7ec994;
+      --green-dim:  rgba(126,201,148,0.12);
+      --radius:     14px;
+      --radius-lg:  22px;
+      --shadow:     0 8px 40px rgba(0,0,0,0.6);
+      --trans:      all 0.22s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* ─── RESET & BASE ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-weight: 400;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow-x: hidden;
+    }
+
+    /* ─── BACKGROUND TEXTURE ───────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(200,169,110,0.04) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 60% at 80% 90%, rgba(100,80,200,0.04) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── LAYOUT ───────────────────────────────────────────────────── */
+    .app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 580px;
+      padding: 24px 20px 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    /* ─── HEADER ───────────────────────────────────────────────────── */
+    .header {
+      width: 100%;
+      text-align: center;
+      padding: 32px 0 28px;
+    }
+    .header-jp {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 13px;
+      font-weight: 300;
+      color: var(--accent);
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      opacity: 0.85;
+    }
+    .header-title {
+      font-size: 26px;
+      font-weight: 300;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+    .header-sub {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-top: 6px;
+      letter-spacing: 0.02em;
+    }
+
+    /* ─── DIVIDER ──────────────────────────────────────────────────── */
+    .divider {
+      width: 40px;
+      height: 1px;
+      background: var(--accent);
+      opacity: 0.35;
+      margin: 0 auto 28px;
+    }
+
+    /* ─── SCREENS ──────────────────────────────────────────────────── */
+    .screen {
+      width: 100%;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      animation: fadeUp 0.35s ease both;
+    }
+    .screen.active { display: flex; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── CARDS / PANELS ───────────────────────────────────────────── */
+    .panel {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 28px;
+      transition: var(--trans);
+    }
+
+    /* ─── HOME SCREEN ──────────────────────────────────────────────── */
+    .mode-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+    }
+    .mode-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: var(--trans);
+      color: var(--text);
+      user-select: none;
+    }
+    .mode-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      transform: translateY(-2px);
+    }
+    .mode-btn.selected {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+    .mode-btn .jp-char {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 28px;
+      line-height: 1;
+    }
+    .mode-btn .mode-label {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    .section-label {
+      width: 100%;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      padding-left: 4px;
+      margin-bottom: -4px;
+    }
+
+    /* Difficulty selector */
+    .difficulty-row {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+    .diff-btn {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--trans);
+      color: var(--text-dim);
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      user-select: none;
+    }
+    .diff-btn:hover { border-color: var(--border-h); color: var(--text); }
+    .diff-btn.selected {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+    .diff-badge {
+      font-size: 10px;
+      color: var(--text-faint);
+      display: block;
+      margin-top: 3px;
+    }
+
+    /* Round count */
+    .count-row {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+    .count-btn {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--trans);
+      color: var(--text-dim);
+      font-size: 13px;
+      user-select: none;
+    }
+    .count-btn:hover { border-color: var(--border-h); color: var(--text); }
+    .count-btn.selected {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    /* Progress info */
+    .progress-info {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .prog-item { text-align: center; }
+    .prog-val {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--accent);
+    }
+    .prog-lbl {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* ─── START BUTTON ─────────────────────────────────────────────── */
+    .btn-primary {
+      width: 100%;
+      padding: 16px;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius);
+      color: #1a1208;
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: var(--trans);
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px var(--accent-glow);
+      filter: brightness(1.06);
+    }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-dim);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: var(--trans);
+    }
+    .btn-secondary:hover { border-color: var(--border-h); color: var(--text); }
+
+    /* ─── QUIZ SCREEN ──────────────────────────────────────────────── */
+    .quiz-top {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 2px;
+    }
+    .quiz-meta {
+      font-size: 12px;
+      color: var(--text-faint);
+      letter-spacing: 0.06em;
+    }
+    .quiz-score-live {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .quiz-score-live span { color: var(--green); font-weight: 600; }
+
+    /* Progress bar */
+    .progress-bar-wrap {
+      width: 100%;
+      height: 2px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    /* Flash card */
+    .flash-card {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 28px 36px;
+      min-height: 220px;
+      position: relative;
+      overflow: hidden;
+    }
+    .flash-card::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 140px; height: 140px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .card-type-badge {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      opacity: 0.7;
+      margin-bottom: 14px;
+    }
+    .card-character {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-weight: 300;
+      font-size: 88px;
+      line-height: 1;
+      color: var(--text);
+      text-shadow: 0 0 60px rgba(200,169,110,0.15);
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    .card-character.word-mode {
+      font-size: 52px;
+      font-weight: 400;
+    }
+    .card-reading {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 14px;
+      font-weight: 300;
+      color: var(--text-dim);
+      margin-top: 8px;
+      letter-spacing: 0.05em;
+      min-height: 18px;
+    }
+    .card-character.flip-out {
+      transform: scale(0.85);
+      opacity: 0;
+    }
+    .card-character.flip-in {
+      animation: flipIn 0.28s ease both;
+    }
+    @keyframes flipIn {
+      from { transform: scale(0.75) rotateY(-20deg); opacity: 0; }
+      to   { transform: scale(1) rotateY(0deg); opacity: 1; }
+    }
+    .card-hint-prompt {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--text-faint);
+      letter-spacing: 0.08em;
+    }
+    .btn-hint {
+      margin-top: 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      color: var(--text-faint);
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      padding: 5px 14px;
+      cursor: pointer;
+      transition: var(--trans);
+      display: none;
+    }
+    .btn-hint.visible { display: inline-block; }
+    .btn-hint:hover { border-color: var(--accent); color: var(--accent); }
+    .hint-reveal {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--accent);
+      opacity: 0.85;
+      text-align: center;
+      min-height: 16px;
+      letter-spacing: 0.03em;
+    }
+    .sentence-block {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .sentence-block.show { display: flex; }
+    .sentence-jp {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--text);
+      line-height: 1.7;
+    }
+    .sentence-en {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+    .sentence-label {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 2px;
+    }
+
+    /* Choices */
+    .choices-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    .choices-grid.word-choices {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .choices-grid.word-choices .choice-btn {
+      padding: 14px 18px;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .choices-grid.word-choices .choice-romaji {
+      font-size: 13px;
+      color: var(--text);
+      letter-spacing: 0;
+    }
+    .choice-index {
+      font-size: 11px;
+      color: var(--text-faint);
+      font-weight: 500;
+      min-width: 16px;
+      display: none;
+    }
+    .choices-grid.word-choices .choice-index { display: block; }
+    .choice-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--trans);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+    }
+    .choice-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      transform: translateY(-2px);
+    }
+    .choice-btn:disabled { cursor: default; }
+
+    .choice-btn .choice-jp {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 17px;
+      font-weight: 400;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .choice-btn .choice-romaji {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+    }
+
+    .choice-btn.correct {
+      border-color: var(--green);
+      background: var(--green-dim);
+      box-shadow: 0 0 0 1px var(--green);
+    }
+    .choice-btn.correct .choice-romaji { color: var(--green); }
+
+    .choice-btn.wrong {
+      border-color: var(--red);
+      background: var(--red-dim);
+      box-shadow: 0 0 0 1px var(--red);
+      animation: shake 0.35s ease;
+    }
+    .choice-btn.wrong .choice-romaji { color: var(--red); }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-6px); }
+      40% { transform: translateX(6px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+
+    /* Feedback banner */
+    .feedback {
+      width: 100%;
+      border-radius: var(--radius);
+      padding: 13px 18px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: var(--trans);
+      pointer-events: none;
+    }
+    .feedback.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .feedback.correct-fb {
+      background: var(--green-dim);
+      border: 1px solid rgba(126,201,148,0.25);
+      color: var(--green);
+    }
+    .feedback.wrong-fb {
+      background: var(--red-dim);
+      border: 1px solid rgba(224,112,112,0.25);
+      color: var(--red);
+    }
+    .fb-icon { font-size: 16px; flex-shrink: 0; }
+    .fb-answer { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+
+    /* Next button */
+    .btn-next {
+      width: 100%;
+      padding: 14px;
+      background: transparent;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: var(--accent);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: var(--trans);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .btn-next.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .btn-next:hover {
+      background: var(--accent-dim);
+      transform: translateY(-1px);
+    }
+
+    /* End quiz button */
+    .btn-end {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-faint);
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      padding: 9px 18px;
+      cursor: pointer;
+      transition: var(--trans);
+      letter-spacing: 0.04em;
+    }
+    .btn-end:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    /* ─── RESULTS SCREEN ───────────────────────────────────────────── */
+    .result-card {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 40px 28px;
+      text-align: center;
+    }
+    .result-jp {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-weight: 300;
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
+    .result-title {
+      font-size: 20px;
+      font-weight: 300;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .result-sub {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .score-ring-wrap {
+      margin: 32px 0 24px;
+      display: flex;
+      justify-content: center;
+    }
+    .score-ring {
+      position: relative;
+      width: 120px;
+      height: 120px;
+    }
+    .score-ring svg {
+      transform: rotate(-90deg);
+    }
+    .score-ring-track {
+      fill: none;
+      stroke: var(--surface2);
+      stroke-width: 6;
+    }
+    .score-ring-fill {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 6;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1);
+    }
+    .score-ring-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .score-pct {
+      font-size: 28px;
+      font-weight: 500;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .score-pct-lbl {
+      font-size: 10px;
+      color: var(--text-faint);
+      letter-spacing: 0.1em;
+      margin-top: 3px;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .stat-item {
+      flex: 1;
+      padding: 16px 12px;
+      text-align: center;
+      border-right: 1px solid var(--border);
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-val {
+      font-size: 24px;
+      font-weight: 500;
+    }
+    .stat-val.green { color: var(--green); }
+    .stat-val.red { color: var(--red); }
+    .stat-val.gold { color: var(--accent); }
+    .stat-lbl {
+      font-size: 10px;
+      color: var(--text-faint);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .result-grade {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .result-grade strong { color: var(--accent); }
+
+    /* Level up banner */
+    .level-up-banner {
+      background: linear-gradient(135deg, rgba(200,169,110,0.12), rgba(200,169,110,0.04));
+      border: 1px solid rgba(200,169,110,0.3);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      text-align: center;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .level-up-banner.show { display: block; }
+    .level-up-text {
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .level-up-sub {
+      font-size: 11px;
+      color: var(--text-faint);
+      margin-top: 3px;
+    }
+
+    /* Missed items */
+    .missed-section {
+      width: 100%;
+    }
+    .missed-title {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 10px;
+    }
+    .missed-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .missed-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .missed-char {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 22px;
+      font-weight: 400;
+    }
+    .missed-info { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+    .missed-info strong { color: var(--text); }
+
+    .result-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+
+    /* ─── LEVEL INDICATOR (HOME) ───────────────────────────────────── */
+    .level-indicator {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .level-left { display: flex; align-items: center; gap: 10px; }
+    .level-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+    .level-name { font-size: 13px; color: var(--text); }
+    .level-num { font-size: 12px; color: var(--text-faint); }
+    .level-xp { font-size: 11px; color: var(--text-faint); }
+
+    /* ─── SCROLLBAR ────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 99px; }
+
+    /* ─── RESPONSIVE ───────────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      .card-character { font-size: 72px; }
+      .choices-grid { grid-template-columns: 1fr 1fr 1fr; }
+      .choice-btn { padding: 13px 6px; }
+      .choice-btn .choice-jp { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-jp">日本語フラッシュカード</div>
+    <h1 class="header-title">Japanese Flash Cards</h1>
+    <p class="header-sub">Study hiragana, katakana &amp; kanji</p>
+  </header>
+  <div class="divider"></div>
+
+  <!-- ═══════════════════════════════ HOME SCREEN ═══════════════════ -->
+  <section class="screen active" id="screen-home">
+
+    <!-- Level indicator -->
+    <div class="level-indicator">
+      <div class="level-left">
+        <div class="level-dot"></div>
+        <span class="level-name" id="home-level-name">Beginner</span>
+      </div>
+      <span class="level-num" id="home-level-num">Level 1</span>
+    </div>
+
+    <!-- Card type selector -->
+    <p class="section-label">Card Type</p>
+    <div class="mode-grid" id="mode-grid">
+      <button class="mode-btn selected" data-mode="hiragana" id="btn-mode-hiragana">
+        <span class="jp-char">あ</span>
+        <span class="mode-label">Hiragana</span>
+      </button>
+      <button class="mode-btn" data-mode="katakana" id="btn-mode-katakana">
+        <span class="jp-char">ア</span>
+        <span class="mode-label">Katakana</span>
+      </button>
+      <button class="mode-btn" data-mode="kanji" id="btn-mode-kanji">
+        <span class="jp-char">漢</span>
+        <span class="mode-label">Kanji</span>
+      </button>
+      <button class="mode-btn" data-mode="words" id="btn-mode-words">
+        <span class="jp-char">言葉</span>
+        <span class="mode-label">Words</span>
+      </button>
+    </div>
+
+    <!-- Difficulty -->
+    <p class="section-label">Difficulty</p>
+    <div class="difficulty-row" id="difficulty-row">
+      <button class="diff-btn selected" data-diff="1" id="btn-diff-1">
+        Easy<span class="diff-badge" id="diff-badge-1">Basic</span>
+      </button>
+      <button class="diff-btn" data-diff="2" id="btn-diff-2">
+        Medium<span class="diff-badge" id="diff-badge-2">Mixed</span>
+      </button>
+      <button class="diff-btn" data-diff="3" id="btn-diff-3">
+        Hard<span class="diff-badge" id="diff-badge-3">All chars</span>
+      </button>
+    </div>
+
+    <!-- Round count -->
+    <p class="section-label">Questions</p>
+    <div class="count-row" id="count-row">
+      <button class="count-btn selected" data-count="10" id="btn-count-10">10</button>
+      <button class="count-btn" data-count="20" id="btn-count-20">20</button>
+      <button class="count-btn" data-count="30" id="btn-count-30">30</button>
+    </div>
+
+    <!-- Progress stats -->
+    <div class="progress-info">
+      <div class="prog-item">
+        <div class="prog-val" id="stat-total-quizzes">0</div>
+        <div class="prog-lbl">Quizzes</div>
+      </div>
+      <div class="prog-item">
+        <div class="prog-val" id="stat-best-score">—</div>
+        <div class="prog-lbl">Best Score</div>
+      </div>
+      <div class="prog-item">
+        <div class="prog-val" id="stat-streak">0</div>
+        <div class="prog-lbl">Streak</div>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="btn-start">Start Quiz →</button>
+
+  </section>
+
+  <!-- ═══════════════════════════════ QUIZ SCREEN ═══════════════════ -->
+  <section class="screen" id="screen-quiz">
+
+    <!-- Top bar -->
+    <div class="quiz-top">
+      <span class="quiz-meta" id="quiz-meta">Question 1 of 10</span>
+      <span class="quiz-score-live">Score: <span id="live-score">0</span></span>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+
+    <!-- Flash card -->
+    <div class="flash-card">
+      <div class="card-type-badge" id="card-type-badge">Hiragana</div>
+      <div class="card-character" id="card-character">あ</div>
+      <div class="card-reading" id="card-reading"></div>
+      <div class="card-hint-prompt" id="card-hint">What is the romaji reading?</div>
+      <button class="btn-hint" id="btn-hint">💡 Show Hint</button>
+      <div class="hint-reveal" id="hint-reveal"></div>
+    </div>
+
+    <!-- Example sentence (revealed after answering in words mode) -->
+    <div class="sentence-block" id="sentence-block">
+      <div class="sentence-label">Example sentence</div>
+      <div class="sentence-jp" id="sentence-jp"></div>
+      <div class="sentence-en" id="sentence-en"></div>
+    </div>
+
+    <!-- Choices -->
+    <div class="choices-grid" id="choices-grid">
+      <button class="choice-btn" id="choice-0">
+        <span class="choice-index">A</span>
+        <span class="choice-jp" id="cjp-0"></span>
+        <span class="choice-romaji" id="crom-0"></span>
+      </button>
+      <button class="choice-btn" id="choice-1">
+        <span class="choice-index">B</span>
+        <span class="choice-jp" id="cjp-1"></span>
+        <span class="choice-romaji" id="crom-1"></span>
+      </button>
+      <button class="choice-btn" id="choice-2">
+        <span class="choice-index">C</span>
+        <span class="choice-jp" id="cjp-2"></span>
+        <span class="choice-romaji" id="crom-2"></span>
+      </button>
+    </div>
+
+    <!-- Feedback -->
+    <div class="feedback" id="feedback">
+      <span class="fb-icon" id="fb-icon"></span>
+      <div>
+        <div id="fb-main"></div>
+        <div class="fb-answer" id="fb-answer"></div>
+      </div>
+    </div>
+
+    <!-- Next / End -->
+    <button class="btn-next" id="btn-next">Next →</button>
+    <button class="btn-end" id="btn-end-quiz">End Quiz</button>
+
+  </section>
+
+  <!-- ═══════════════════════════════ RESULTS SCREEN ════════════════ -->
+  <section class="screen" id="screen-results">
+
+    <div class="result-card" id="result-card">
+      <div class="result-jp" id="result-jp">🎌</div>
+      <div class="result-title" id="result-title">Quiz Complete!</div>
+      <div class="result-sub" id="result-sub">Here's how you did</div>
+
+      <!-- Score ring -->
+      <div class="score-ring-wrap">
+        <div class="score-ring">
+          <svg viewBox="0 0 120 120" width="120" height="120">
+            <circle class="score-ring-track" cx="60" cy="60" r="52"/>
+            <circle class="score-ring-fill" id="score-ring-fill" cx="60" cy="60" r="52"
+              stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+          </svg>
+          <div class="score-ring-text">
+            <div class="score-pct" id="score-pct">0%</div>
+            <div class="score-pct-lbl">SCORE</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-item">
+          <div class="stat-val green" id="res-correct">0</div>
+          <div class="stat-lbl">Correct</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val red" id="res-wrong">0</div>
+          <div class="stat-lbl">Wrong</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val gold" id="res-total">0</div>
+          <div class="stat-lbl">Total</div>
+        </div>
+      </div>
+
+      <div class="result-grade" id="result-grade"></div>
+    </div>
+
+    <!-- Level up banner -->
+    <div class="level-up-banner" id="level-up-banner">
+      <div class="level-up-text" id="level-up-text">⭐ Level Up!</div>
+      <div class="level-up-sub" id="level-up-sub">Unlocked new difficulty</div>
+    </div>
+
+    <!-- Missed items -->
+    <div class="missed-section" id="missed-section">
+      <div class="missed-title">Review These :</div>
+      <div class="missed-list" id="missed-list"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="result-actions">
+      <button class="btn-primary" id="btn-retry">Play Again →</button>
+      <button class="btn-secondary" id="btn-home">← Back to Home</button>
+    </div>
+
+  </section>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   DATA SETS
+═══════════════════════════════════════════════════════════════════ */
+
+const HIRAGANA = [
+  { char: 'あ', romaji: 'a',   meaning: '' },
+  { char: 'い', romaji: 'i',   meaning: '' },
+  { char: 'う', romaji: 'u',   meaning: '' },
+  { char: 'え', romaji: 'e',   meaning: '' },
+  { char: 'お', romaji: 'o',   meaning: '' },
+  { char: 'か', romaji: 'ka',  meaning: '' },
+  { char: 'き', romaji: 'ki',  meaning: '' },
+  { char: 'く', romaji: 'ku',  meaning: '' },
+  { char: 'け', romaji: 'ke',  meaning: '' },
+  { char: 'こ', romaji: 'ko',  meaning: '' },
+  { char: 'さ', romaji: 'sa',  meaning: '' },
+  { char: 'し', romaji: 'shi', meaning: '' },
+  { char: 'す', romaji: 'su',  meaning: '' },
+  { char: 'せ', romaji: 'se',  meaning: '' },
+  { char: 'そ', romaji: 'so',  meaning: '' },
+  { char: 'た', romaji: 'ta',  meaning: '' },
+  { char: 'ち', romaji: 'chi', meaning: '' },
+  { char: 'つ', romaji: 'tsu', meaning: '' },
+  { char: 'て', romaji: 'te',  meaning: '' },
+  { char: 'と', romaji: 'to',  meaning: '' },
+  { char: 'な', romaji: 'na',  meaning: '' },
+  { char: 'に', romaji: 'ni',  meaning: '' },
+  { char: 'ぬ', romaji: 'nu',  meaning: '' },
+  { char: 'ね', romaji: 'ne',  meaning: '' },
+  { char: 'の', romaji: 'no',  meaning: '' },
+  { char: 'は', romaji: 'ha',  meaning: '' },
+  { char: 'ひ', romaji: 'hi',  meaning: '' },
+  { char: 'ふ', romaji: 'fu',  meaning: '' },
+  { char: 'へ', romaji: 'he',  meaning: '' },
+  { char: 'ほ', romaji: 'ho',  meaning: '' },
+  { char: 'ま', romaji: 'ma',  meaning: '' },
+  { char: 'み', romaji: 'mi',  meaning: '' },
+  { char: 'む', romaji: 'mu',  meaning: '' },
+  { char: 'め', romaji: 'me',  meaning: '' },
+  { char: 'も', romaji: 'mo',  meaning: '' },
+  { char: 'や', romaji: 'ya',  meaning: '' },
+  { char: 'ゆ', romaji: 'yu',  meaning: '' },
+  { char: 'よ', romaji: 'yo',  meaning: '' },
+  { char: 'ら', romaji: 'ra',  meaning: '' },
+  { char: 'り', romaji: 'ri',  meaning: '' },
+  { char: 'る', romaji: 'ru',  meaning: '' },
+  { char: 'れ', romaji: 're',  meaning: '' },
+  { char: 'ろ', romaji: 'ro',  meaning: '' },
+  { char: 'わ', romaji: 'wa',  meaning: '' },
+  { char: 'を', romaji: 'wo',  meaning: '' },
+  { char: 'ん', romaji: 'n',   meaning: '' },
+  { char: 'が', romaji: 'ga',  meaning: '' },
+  { char: 'ぎ', romaji: 'gi',  meaning: '' },
+  { char: 'ぐ', romaji: 'gu',  meaning: '' },
+  { char: 'げ', romaji: 'ge',  meaning: '' },
+  { char: 'ご', romaji: 'go',  meaning: '' },
+  { char: 'ざ', romaji: 'za',  meaning: '' },
+  { char: 'じ', romaji: 'ji',  meaning: '' },
+  { char: 'ず', romaji: 'zu',  meaning: '' },
+  { char: 'ぜ', romaji: 'ze',  meaning: '' },
+  { char: 'ぞ', romaji: 'zo',  meaning: '' },
+  { char: 'だ', romaji: 'da',  meaning: '' },
+  { char: 'で', romaji: 'de',  meaning: '' },
+  { char: 'ど', romaji: 'do',  meaning: '' },
+  { char: 'ば', romaji: 'ba',  meaning: '' },
+  { char: 'び', romaji: 'bi',  meaning: '' },
+  { char: 'ぶ', romaji: 'bu',  meaning: '' },
+  { char: 'べ', romaji: 'be',  meaning: '' },
+  { char: 'ぼ', romaji: 'bo',  meaning: '' },
+  { char: 'ぱ', romaji: 'pa',  meaning: '' },
+  { char: 'ぴ', romaji: 'pi',  meaning: '' },
+  { char: 'ぷ', romaji: 'pu',  meaning: '' },
+  { char: 'ぺ', romaji: 'pe',  meaning: '' },
+  { char: 'ぽ', romaji: 'po',  meaning: '' },
+];
+
+const KATAKANA = [
+  { char: 'ア', romaji: 'a',   meaning: '' },
+  { char: 'イ', romaji: 'i',   meaning: '' },
+  { char: 'ウ', romaji: 'u',   meaning: '' },
+  { char: 'エ', romaji: 'e',   meaning: '' },
+  { char: 'オ', romaji: 'o',   meaning: '' },
+  { char: 'カ', romaji: 'ka',  meaning: '' },
+  { char: 'キ', romaji: 'ki',  meaning: '' },
+  { char: 'ク', romaji: 'ku',  meaning: '' },
+  { char: 'ケ', romaji: 'ke',  meaning: '' },
+  { char: 'コ', romaji: 'ko',  meaning: '' },
+  { char: 'サ', romaji: 'sa',  meaning: '' },
+  { char: 'シ', romaji: 'shi', meaning: '' },
+  { char: 'ス', romaji: 'su',  meaning: '' },
+  { char: 'セ', romaji: 'se',  meaning: '' },
+  { char: 'ソ', romaji: 'so',  meaning: '' },
+  { char: 'タ', romaji: 'ta',  meaning: '' },
+  { char: 'チ', romaji: 'chi', meaning: '' },
+  { char: 'ツ', romaji: 'tsu', meaning: '' },
+  { char: 'テ', romaji: 'te',  meaning: '' },
+  { char: 'ト', romaji: 'to',  meaning: '' },
+  { char: 'ナ', romaji: 'na',  meaning: '' },
+  { char: 'ニ', romaji: 'ni',  meaning: '' },
+  { char: 'ヌ', romaji: 'nu',  meaning: '' },
+  { char: 'ネ', romaji: 'ne',  meaning: '' },
+  { char: 'ノ', romaji: 'no',  meaning: '' },
+  { char: 'ハ', romaji: 'ha',  meaning: '' },
+  { char: 'ヒ', romaji: 'hi',  meaning: '' },
+  { char: 'フ', romaji: 'fu',  meaning: '' },
+  { char: 'ヘ', romaji: 'he',  meaning: '' },
+  { char: 'ホ', romaji: 'ho',  meaning: '' },
+  { char: 'マ', romaji: 'ma',  meaning: '' },
+  { char: 'ミ', romaji: 'mi',  meaning: '' },
+  { char: 'ム', romaji: 'mu',  meaning: '' },
+  { char: 'メ', romaji: 'me',  meaning: '' },
+  { char: 'モ', romaji: 'mo',  meaning: '' },
+  { char: 'ヤ', romaji: 'ya',  meaning: '' },
+  { char: 'ユ', romaji: 'yu',  meaning: '' },
+  { char: 'ヨ', romaji: 'yo',  meaning: '' },
+  { char: 'ラ', romaji: 'ra',  meaning: '' },
+  { char: 'リ', romaji: 'ri',  meaning: '' },
+  { char: 'ル', romaji: 'ru',  meaning: '' },
+  { char: 'レ', romaji: 're',  meaning: '' },
+  { char: 'ロ', romaji: 'ro',  meaning: '' },
+  { char: 'ワ', romaji: 'wa',  meaning: '' },
+  { char: 'ヲ', romaji: 'wo',  meaning: '' },
+  { char: 'ン', romaji: 'n',   meaning: '' },
+  { char: 'ガ', romaji: 'ga',  meaning: '' },
+  { char: 'ギ', romaji: 'gi',  meaning: '' },
+  { char: 'グ', romaji: 'gu',  meaning: '' },
+  { char: 'ゲ', romaji: 'ge',  meaning: '' },
+  { char: 'ゴ', romaji: 'go',  meaning: '' },
+  { char: 'ザ', romaji: 'za',  meaning: '' },
+  { char: 'ジ', romaji: 'ji',  meaning: '' },
+  { char: 'ズ', romaji: 'zu',  meaning: '' },
+  { char: 'ゼ', romaji: 'ze',  meaning: '' },
+  { char: 'ゾ', romaji: 'zo',  meaning: '' },
+  { char: 'ダ', romaji: 'da',  meaning: '' },
+  { char: 'デ', romaji: 'de',  meaning: '' },
+  { char: 'ド', romaji: 'do',  meaning: '' },
+  { char: 'バ', romaji: 'ba',  meaning: '' },
+  { char: 'ビ', romaji: 'bi',  meaning: '' },
+  { char: 'ブ', romaji: 'bu',  meaning: '' },
+  { char: 'ベ', romaji: 'be',  meaning: '' },
+  { char: 'ボ', romaji: 'bo',  meaning: '' },
+  { char: 'パ', romaji: 'pa',  meaning: '' },
+  { char: 'ピ', romaji: 'pi',  meaning: '' },
+  { char: 'プ', romaji: 'pu',  meaning: '' },
+  { char: 'ペ', romaji: 'pe',  meaning: '' },
+  { char: 'ポ', romaji: 'po',  meaning: '' },
+];
+
+const KANJI = [
+  { char: '一', romaji: 'ichi',    meaning: 'one' },
+  { char: '二', romaji: 'ni',      meaning: 'two' },
+  { char: '三', romaji: 'san',     meaning: 'three' },
+  { char: '四', romaji: 'shi',     meaning: 'four' },
+  { char: '五', romaji: 'go',      meaning: 'five' },
+  { char: '六', romaji: 'roku',    meaning: 'six' },
+  { char: '七', romaji: 'shichi',  meaning: 'seven' },
+  { char: '八', romaji: 'hachi',   meaning: 'eight' },
+  { char: '九', romaji: 'ku',      meaning: 'nine' },
+  { char: '十', romaji: 'juu',     meaning: 'ten' },
+  { char: '百', romaji: 'hyaku',   meaning: 'hundred' },
+  { char: '千', romaji: 'sen',     meaning: 'thousand' },
+  { char: '万', romaji: 'man',     meaning: 'ten-thousand' },
+  { char: '日', romaji: 'nichi',   meaning: 'sun / day' },
+  { char: '月', romaji: 'tsuki',   meaning: 'moon / month' },
+  { char: '火', romaji: 'hi',      meaning: 'fire' },
+  { char: '水', romaji: 'mizu',    meaning: 'water' },
+  { char: '木', romaji: 'ki',      meaning: 'tree / wood' },
+  { char: '金', romaji: 'kin',     meaning: 'gold / money' },
+  { char: '土', romaji: 'tsuchi',  meaning: 'earth / soil' },
+  { char: '山', romaji: 'yama',    meaning: 'mountain' },
+  { char: '川', romaji: 'kawa',    meaning: 'river' },
+  { char: '田', romaji: 'ta',      meaning: 'rice field' },
+  { char: '人', romaji: 'hito',    meaning: 'person' },
+  { char: '口', romaji: 'kuchi',   meaning: 'mouth' },
+  { char: '手', romaji: 'te',      meaning: 'hand' },
+  { char: '足', romaji: 'ashi',    meaning: 'foot / leg' },
+  { char: '目', romaji: 'me',      meaning: 'eye' },
+  { char: '耳', romaji: 'mimi',    meaning: 'ear' },
+  { char: '上', romaji: 'ue',      meaning: 'up / above' },
+  { char: '下', romaji: 'shita',   meaning: 'down / below' },
+  { char: '左', romaji: 'hidari',  meaning: 'left' },
+  { char: '右', romaji: 'migi',    meaning: 'right' },
+  { char: '中', romaji: 'naka',    meaning: 'middle / inside' },
+  { char: '大', romaji: 'dai',     meaning: 'big / large' },
+  { char: '小', romaji: 'shou',    meaning: 'small / little' },
+  { char: '年', romaji: 'nen',     meaning: 'year' },
+  { char: '男', romaji: 'otoko',   meaning: 'man / male' },
+  { char: '女', romaji: 'onna',    meaning: 'woman / female' },
+  { char: '子', romaji: 'ko',      meaning: 'child' },
+  { char: '学', romaji: 'gaku',    meaning: 'study / learn' },
+  { char: '生', romaji: 'sei',     meaning: 'life / birth' },
+  { char: '先', romaji: 'sen',     meaning: 'before / ahead' },
+  { char: '校', romaji: 'kou',     meaning: 'school' },
+  { char: '国', romaji: 'kuni',    meaning: 'country / nation' },
+  { char: '東', romaji: 'higashi', meaning: 'east' },
+  { char: '西', romaji: 'nishi',   meaning: 'west' },
+  { char: '南', romaji: 'minami',  meaning: 'south' },
+  { char: '北', romaji: 'kita',    meaning: 'north' },
+  { char: '語', romaji: 'go',      meaning: 'language' },
+  { char: '話', romaji: 'hanashi', meaning: 'talk / speech' },
+  { char: '食', romaji: 'shoku',   meaning: 'eat / food' },
+  { char: '飲', romaji: 'in',      meaning: 'drink' },
+  { char: '見', romaji: 'mi',      meaning: 'see / look' },
+  { char: '聞', romaji: 'kiku',    meaning: 'hear / listen' },
+  { char: '読', romaji: 'yomu',    meaning: 'read' },
+  { char: '書', romaji: 'kaku',    meaning: 'write' },
+  { char: '来', romaji: 'kuru',    meaning: 'come' },
+  { char: '行', romaji: 'iku',     meaning: 'go' },
+  { char: '時', romaji: 'toki',    meaning: 'time / hour' },
+  { char: '間', romaji: 'aida',    meaning: 'interval / between' },
+  { char: '電', romaji: 'den',     meaning: 'electricity' },
+  { char: '車', romaji: 'kuruma',  meaning: 'car / vehicle' },
+  { char: '気', romaji: 'ki',      meaning: 'spirit / energy' },
+  { char: '心', romaji: 'kokoro',  meaning: 'heart / mind' },
+];
+
+/* ═══════════════════════════════════════════════════════════════════
+   WORDS DATA  (level 1=N5 · 2=N4 · 3=N3)
+═══════════════════════════════════════════════════════════════════ */
+const WORDS = [
+  // ── LEVEL 1 · N5 ─────────────────────────────────────────────────
+  { word:'食べる', reading:'たべる', romaji:'taberu', meaning:'to eat',
+    hint:'A daily action involving food', level:1,
+    sentence:'毎日、ご飯を食べる。', sentenceEn:'I eat rice every day.' },
+  { word:'飲む', reading:'のむ', romaji:'nomu', meaning:'to drink',
+    hint:'What you do with water or tea', level:1,
+    sentence:'コーヒーを飲む。', sentenceEn:'I drink coffee.' },
+  { word:'見る', reading:'みる', romaji:'miru', meaning:'to see / watch',
+    hint:'Used for movies, TV, or scenery', level:1,
+    sentence:'映画を見る。', sentenceEn:'I watch a movie.' },
+  { word:'聞く', reading:'きく', romaji:'kiku', meaning:'to listen / hear',
+    hint:'Used for music, questions, news', level:1,
+    sentence:'音楽を聞く。', sentenceEn:'I listen to music.' },
+  { word:'話す', reading:'はなす', romaji:'hanasu', meaning:'to speak / talk',
+    hint:'What you do in conversation', level:1,
+    sentence:'日本語を話す。', sentenceEn:'I speak Japanese.' },
+  { word:'行く', reading:'いく', romaji:'iku', meaning:'to go',
+    hint:'Movement away from the speaker', level:1,
+    sentence:'学校に行く。', sentenceEn:'I go to school.' },
+  { word:'来る', reading:'くる', romaji:'kuru', meaning:'to come',
+    hint:'Movement toward the speaker', level:1,
+    sentence:'友達が来る。', sentenceEn:'My friend comes over.' },
+  { word:'買う', reading:'かう', romaji:'kau', meaning:'to buy',
+    hint:'You do this at a store or shop', level:1,
+    sentence:'スーパーで野菜を買う。', sentenceEn:'I buy vegetables at the supermarket.' },
+  { word:'好き', reading:'すき', romaji:'suki', meaning:'to like / fond of',
+    hint:'Expresses a positive feeling toward something', level:1,
+    sentence:'猫が好きです。', sentenceEn:'I like cats.' },
+  { word:'大きい', reading:'おおきい', romaji:'ookii', meaning:'big / large',
+    hint:'Opposite of 小さい', level:1,
+    sentence:'あの山は大きい。', sentenceEn:'That mountain is big.' },
+  { word:'小さい', reading:'ちいさい', romaji:'chiisai', meaning:'small / little',
+    hint:'Opposite of 大きい', level:1,
+    sentence:'この部屋は小さい。', sentenceEn:'This room is small.' },
+  { word:'高い', reading:'たかい', romaji:'takai', meaning:'expensive / tall',
+    hint:'Applies to prices AND height', level:1,
+    sentence:'このバッグは高い。', sentenceEn:'This bag is expensive.' },
+  { word:'安い', reading:'やすい', romaji:'yasui', meaning:'cheap / inexpensive',
+    hint:'Opposite of 高い for prices', level:1,
+    sentence:'このお店は安い。', sentenceEn:'This store is cheap.' },
+  { word:'新しい', reading:'あたらしい', romaji:'atarashii', meaning:'new',
+    hint:'Opposite of 古い', level:1,
+    sentence:'新しい車を買った。', sentenceEn:'I bought a new car.' },
+  { word:'古い', reading:'ふるい', romaji:'furui', meaning:'old / ancient',
+    hint:'Used for objects, not people', level:1,
+    sentence:'古い本がある。', sentenceEn:'There is an old book.' },
+  { word:'学校', reading:'がっこう', romaji:'gakkou', meaning:'school',
+    hint:'Where students go to study', level:1,
+    sentence:'学校は9時に始まる。', sentenceEn:"School starts at 9 o'clock." },
+  { word:'電車', reading:'でんしゃ', romaji:'densha', meaning:'train',
+    hint:'Common Japanese public transport', level:1,
+    sentence:'電車で駅に行く。', sentenceEn:'I go to the station by train.' },
+  { word:'本', reading:'ほん', romaji:'hon', meaning:'book',
+    hint:'You read this; also means "origin"', level:1,
+    sentence:'図書館で本を読む。', sentenceEn:'I read a book at the library.' },
+  { word:'友達', reading:'ともだち', romaji:'tomodachi', meaning:'friend',
+    hint:'Someone you are close to', level:1,
+    sentence:'友達と公園で遊ぶ。', sentenceEn:'I play in the park with a friend.' },
+  { word:'水', reading:'みず', romaji:'mizu', meaning:'water',
+    hint:'The most essential liquid', level:1,
+    sentence:'水を飲む。', sentenceEn:'I drink water.' },
+  // ── LEVEL 2 · N4 ─────────────────────────────────────────────────
+  { word:'覚える', reading:'おぼえる', romaji:'oboeru', meaning:'to remember / memorize',
+    hint:'What you do when studying vocabulary', level:2,
+    sentence:'新しい単語を覚える。', sentenceEn:'I memorize new vocabulary words.' },
+  { word:'忘れる', reading:'わすれる', romaji:'wasureru', meaning:'to forget',
+    hint:'Opposite of 覚える', level:2,
+    sentence:'宿題を忘れた。', sentenceEn:'I forgot my homework.' },
+  { word:'働く', reading:'はたらく', romaji:'hataraku', meaning:'to work',
+    hint:'What adults do at a company or job', level:2,
+    sentence:'毎日、会社で働く。', sentenceEn:'I work at the company every day.' },
+  { word:'休む', reading:'やすむ', romaji:'yasumu', meaning:'to rest / take a day off',
+    hint:'What you do when tired or sick', level:2,
+    sentence:'今日は会社を休む。', sentenceEn:'I take the day off from work today.' },
+  { word:'始める', reading:'はじめる', romaji:'hajimeru', meaning:'to begin / start',
+    hint:'The first action in a sequence', level:2,
+    sentence:'授業を始める。', sentenceEn:'I start the class.' },
+  { word:'終わる', reading:'おわる', romaji:'owaru', meaning:'to end / finish',
+    hint:'Opposite of 始める', level:2,
+    sentence:'映画が終わる。', sentenceEn:'The movie ends.' },
+  { word:'旅行', reading:'りょこう', romaji:'ryokou', meaning:'travel / trip',
+    hint:'Going somewhere for leisure or exploration', level:2,
+    sentence:'来月、日本へ旅行する。', sentenceEn:'I will travel to Japan next month.' },
+  { word:'料理', reading:'りょうり', romaji:'ryouri', meaning:'cooking / cuisine',
+    hint:'The activity of preparing food', level:2,
+    sentence:'毎朝、料理をする。', sentenceEn:'I cook every morning.' },
+  { word:'家族', reading:'かぞく', romaji:'kazoku', meaning:'family',
+    hint:'Parents, siblings, relatives together', level:2,
+    sentence:'家族と一緒に食事する。', sentenceEn:'I have a meal with my family.' },
+  { word:'天気', reading:'てんき', romaji:'tenki', meaning:'weather',
+    hint:'Is it sunny? Rainy? Cloudy?', level:2,
+    sentence:'今日の天気は晴れです。', sentenceEn:"Today's weather is sunny." },
+  { word:'病院', reading:'びょういん', romaji:'byouin', meaning:'hospital',
+    hint:'You go here when sick or injured', level:2,
+    sentence:'病院で先生に会う。', sentenceEn:'I see a doctor at the hospital.' },
+  { word:'電話', reading:'でんわ', romaji:'denwa', meaning:'telephone / phone call',
+    hint:'You use this to talk at a distance', level:2,
+    sentence:'友達に電話する。', sentenceEn:'I call my friend on the phone.' },
+  { word:'映画', reading:'えいが', romaji:'eiga', meaning:'movie / film',
+    hint:'You watch this at a cinema or on a screen', level:2,
+    sentence:'週末に映画を見る。', sentenceEn:'I watch a movie on the weekend.' },
+  { word:'音楽', reading:'おんがく', romaji:'ongaku', meaning:'music',
+    hint:'Sounds arranged in a pleasing way', level:2,
+    sentence:'毎晩、音楽を聞く。', sentenceEn:'I listen to music every evening.' },
+  { word:'勉強', reading:'べんきょう', romaji:'benkyou', meaning:'study / studying',
+    hint:'The act of learning academic content', level:2,
+    sentence:'毎日、日本語を勉強する。', sentenceEn:'I study Japanese every day.' },
+  { word:'練習', reading:'れんしゅう', romaji:'renshuu', meaning:'practice / training',
+    hint:'Repeating something to improve skill', level:2,
+    sentence:'毎日ピアノを練習する。', sentenceEn:'I practice piano every day.' },
+  { word:'試験', reading:'しけん', romaji:'shiken', meaning:'exam / test',
+    hint:'An evaluation of your knowledge', level:2,
+    sentence:'明日、試験がある。', sentenceEn:'There is an exam tomorrow.' },
+  { word:'趣味', reading:'しゅみ', romaji:'shumi', meaning:'hobby / interest',
+    hint:'Something you do for fun in free time', level:2,
+    sentence:'私の趣味は読書です。', sentenceEn:'My hobby is reading.' },
+  { word:'運動', reading:'うんどう', romaji:'undou', meaning:'exercise / sports',
+    hint:'Physical activity for health or fitness', level:2,
+    sentence:'毎朝、公園で運動する。', sentenceEn:'I exercise in the park every morning.' },
+  { word:'駅', reading:'えき', romaji:'eki', meaning:'station (train/subway)',
+    hint:'Where trains stop and passengers board', level:2,
+    sentence:'駅で友達を待つ。', sentenceEn:'I wait for my friend at the station.' },
+  // ── LEVEL 3 · N3 ─────────────────────────────────────────────────
+  { word:'経験', reading:'けいけん', romaji:'keiken', meaning:'experience',
+    hint:'What you gain by doing something over time', level:3,
+    sentence:'仕事の経験が大切だ。', sentenceEn:'Work experience is important.' },
+  { word:'意味', reading:'いみ', romaji:'imi', meaning:'meaning / significance',
+    hint:'What a word or action conveys', level:3,
+    sentence:'この言葉の意味を教えてください。', sentenceEn:'Please tell me the meaning of this word.' },
+  { word:'理由', reading:'りゆう', romaji:'riyuu', meaning:'reason / cause',
+    hint:'The explanation behind a decision', level:3,
+    sentence:'会社を辞めた理由を話す。', sentenceEn:'I explain the reason I quit the company.' },
+  { word:'約束', reading:'やくそく', romaji:'yakusoku', meaning:'promise / appointment',
+    hint:'An agreement made between people', level:3,
+    sentence:'友達との約束を守る。', sentenceEn:'I keep my promise to my friend.' },
+  { word:'問題', reading:'もんだい', romaji:'mondai', meaning:'problem / issue',
+    hint:'Something that needs to be solved', level:3,
+    sentence:'この問題はむずかしい。', sentenceEn:'This problem is difficult.' },
+  { word:'感情', reading:'かんじょう', romaji:'kanjou', meaning:'emotion / feeling',
+    hint:'An inner state like joy, anger, or sadness', level:3,
+    sentence:'感情を言葉で表す。', sentenceEn:'I express my feelings in words.' },
+  { word:'関係', reading:'かんけい', romaji:'kankei', meaning:'relationship / connection',
+    hint:'The link between people or things', level:3,
+    sentence:'二人の関係は深い。', sentenceEn:'The relationship between the two is deep.' },
+  { word:'機会', reading:'きかい', romaji:'kikai', meaning:'opportunity / chance',
+    hint:'A favorable moment for action', level:3,
+    sentence:'この機会を逃したくない。', sentenceEn:"I don't want to miss this opportunity." },
+  { word:'努力', reading:'どりょく', romaji:'doryoku', meaning:'effort / hard work',
+    hint:'Sustained energy toward a goal', level:3,
+    sentence:'努力すれば夢は叶う。', sentenceEn:'If you work hard, dreams come true.' },
+  { word:'成功', reading:'せいこう', romaji:'seikou', meaning:'success',
+    hint:'Achieving what you set out to do', level:3,
+    sentence:'彼のプロジェクトは成功した。', sentenceEn:'His project was a success.' },
+  { word:'失敗', reading:'しっぱい', romaji:'shippai', meaning:'failure / mistake',
+    hint:'Opposite of 成功', level:3,
+    sentence:'失敗から学ぶことが大切だ。', sentenceEn:'It is important to learn from failure.' },
+  { word:'危険', reading:'きけん', romaji:'kiken', meaning:'danger / risk',
+    hint:'Opposite of 安全', level:3,
+    sentence:'あの道は危険だ。', sentenceEn:'That road is dangerous.' },
+  { word:'安全', reading:'あんぜん', romaji:'anzen', meaning:'safety / safe',
+    hint:'Opposite of 危険', level:3,
+    sentence:'安全な場所に逃げる。', sentenceEn:'I escape to a safe place.' },
+  { word:'文化', reading:'ぶんか', romaji:'bunka', meaning:'culture',
+    hint:'The customs, arts, and values of a society', level:3,
+    sentence:'日本の文化はとても面白い。', sentenceEn:'Japanese culture is very interesting.' },
+  { word:'伝統', reading:'でんとう', romaji:'dentou', meaning:'tradition',
+    hint:'Customs passed down through generations', level:3,
+    sentence:'日本の伝統を守りたい。', sentenceEn:'I want to preserve Japanese traditions.' },
+  { word:'社会', reading:'しゃかい', romaji:'shakai', meaning:'society',
+    hint:'The community of people living together', level:3,
+    sentence:'社会のルールを守る。', sentenceEn:'I follow the rules of society.' },
+  { word:'自然', reading:'しぜん', romaji:'shizen', meaning:'nature',
+    hint:'Mountains, rivers, forests, the outdoors', level:3,
+    sentence:'自然の中で休む。', sentenceEn:'I rest in nature.' },
+  { word:'記念', reading:'きねん', romaji:'kinen', meaning:'commemoration / memory',
+    hint:'Marking a special occasion or anniversary', level:3,
+    sentence:'記念写真を撮る。', sentenceEn:'I take a commemorative photo.' },
+  { word:'将来', reading:'しょうらい', romaji:'shouurai', meaning:'future / prospects',
+    hint:'What lies ahead for a person', level:3,
+    sentence:'将来は医者になりたい。', sentenceEn:'In the future, I want to become a doctor.' },
+  { word:'気持ち', reading:'きもち', romaji:'kimochi', meaning:'feeling / mood',
+    hint:'Your emotional or physical sensation right now', level:3,
+    sentence:'今日は気持ちがいい。', sentenceEn:'I feel good today.' },
+];
+
+/* ═══════════════════════════════════════════════════════════════════
+   APP STATE
+═══════════════════════════════════════════════════════════════════ */
+
+const LEVELS = [
+  { name: 'Beginner',     label: 'Level 1', xpNeeded: 0   },
+  { name: 'Elementary',   label: 'Level 2', xpNeeded: 50  },
+  { name: 'Intermediate', label: 'Level 3', xpNeeded: 150 },
+  { name: 'Advanced',     label: 'Level 4', xpNeeded: 300 },
+  { name: 'Master',       label: 'Level 5', xpNeeded: 500 },
+];
+
+let state = {
+  mode: 'hiragana',
+  difficulty: 1,
+  questionCount: 10,
+  xp: 0,
+  totalQuizzes: 0,
+  bestScore: null,
+  currentStreak: 0,
+  deck: [],
+  currentIndex: 0,
+  score: 0,
+  answeredCorrect: false,
+  missedCards: [],
+  quizEnded: false,
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   PERSISTENCE
+═══════════════════════════════════════════════════════════════════ */
+function save() {
+  try {
+    localStorage.setItem('jpfc', JSON.stringify({
+      xp: state.xp, totalQuizzes: state.totalQuizzes,
+      bestScore: state.bestScore, currentStreak: state.currentStreak,
+      mode: state.mode, difficulty: state.difficulty, questionCount: state.questionCount,
+    }));
+  } catch(e) {}
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem('jpfc') || '{}');
+    if (d.xp !== undefined)           state.xp = d.xp;
+    if (d.totalQuizzes !== undefined)  state.totalQuizzes = d.totalQuizzes;
+    if (d.bestScore !== undefined)     state.bestScore = d.bestScore;
+    if (d.currentStreak !== undefined) state.currentStreak = d.currentStreak;
+    if (d.mode)           state.mode = d.mode;
+    if (d.difficulty)     state.difficulty = d.difficulty;
+    if (d.questionCount)  state.questionCount = d.questionCount;
+  } catch(e) {}
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════════════════════ */
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function getCurrentLevel() {
+  let lv = 0;
+  for (let i = LEVELS.length - 1; i >= 0; i--) {
+    if (state.xp >= LEVELS[i].xpNeeded) { lv = i; break; }
+  }
+  return lv;
+}
+
+function getDeckForSettings() {
+  if (state.mode === 'words') {
+    const pool = WORDS.filter(w => w.level <= state.difficulty);
+    return shuffle(pool).slice(0, state.questionCount);
+  }
+  let pool = state.mode === 'hiragana' ? HIRAGANA
+           : state.mode === 'katakana' ? KATAKANA : KANJI;
+  const len = pool.length;
+  if (state.difficulty === 1) pool = pool.slice(0, Math.min(25, len));
+  else if (state.difficulty === 2) pool = pool.slice(0, Math.min(46, len));
+  return shuffle(pool).slice(0, state.questionCount);
+}
+
+function getChoices(correctCard, pool) {
+  if (state.mode === 'words') {
+    const wrong = shuffle(pool.filter(w => w.word !== correctCard.word && w.meaning !== correctCard.meaning));
+    return shuffle([correctCard, wrong[0], wrong[1]]);
+  }
+  const wrong = shuffle(pool.filter(c => c.char !== correctCard.char));
+  return shuffle([correctCard, wrong[0], wrong[1]]);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SCREEN MANAGEMENT
+═══════════════════════════════════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HOME SCREEN
+═══════════════════════════════════════════════════════════════════ */
+function renderHome() {
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('selected', b.dataset.mode === state.mode);
+  });
+  // Difficulty badge labels change for Words mode
+  const isWords = state.mode === 'words';
+  const diffLabels = isWords ? ['N5 Basic', 'N5 + N4', 'N5 – N3'] : ['Basic', 'Mixed', 'All chars'];
+  ['diff-badge-1','diff-badge-2','diff-badge-3'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = diffLabels[i];
+  });
+  document.querySelectorAll('.diff-btn').forEach(b => {
+    b.classList.toggle('selected', Number(b.dataset.diff) === state.difficulty);
+  });
+  document.querySelectorAll('.count-btn').forEach(b => {
+    b.classList.toggle('selected', Number(b.dataset.count) === state.questionCount);
+  });
+  const lv = getCurrentLevel();
+  document.getElementById('home-level-name').textContent = LEVELS[lv].name;
+  document.getElementById('home-level-num').textContent  = LEVELS[lv].label;
+  document.getElementById('stat-total-quizzes').textContent = state.totalQuizzes;
+  document.getElementById('stat-best-score').textContent =
+    state.bestScore !== null ? state.bestScore + '%' : '—';
+  document.getElementById('stat-streak').textContent = state.currentStreak;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   QUIZ LOGIC
+═══════════════════════════════════════════════════════════════════ */
+let fullPool = [];
+
+function startQuiz() {
+  fullPool = state.mode === 'hiragana' ? HIRAGANA
+           : state.mode === 'katakana' ? KATAKANA
+           : state.mode === 'kanji'    ? KANJI
+           : WORDS;
+  state.deck = getDeckForSettings();
+  state.currentIndex = 0;
+  state.score = 0;
+  state.missedCards = [];
+  state.quizEnded = false;
+  showScreen('screen-quiz');
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const card = state.deck[state.currentIndex];
+  const total = state.deck.length;
+  const idx   = state.currentIndex;
+  const isWords = state.mode === 'words';
+
+  document.getElementById('quiz-meta').textContent = `Question ${idx + 1} of ${total}`;
+  document.getElementById('live-score').textContent = state.score;
+  document.getElementById('progress-fill').style.width = ((idx / total) * 100) + '%';
+
+  // Badge
+  const badges = { hiragana:'Hiragana', katakana:'Katakana', kanji:'Kanji', words:'Vocabulary' };
+  document.getElementById('card-type-badge').textContent = badges[state.mode] || state.mode;
+
+  // Card character
+  const charEl = document.getElementById('card-character');
+  charEl.classList.add('flip-out');
+  setTimeout(() => {
+    charEl.textContent = isWords ? card.word : card.char;
+    charEl.classList.toggle('word-mode', isWords);
+    charEl.classList.remove('flip-out');
+    charEl.classList.add('flip-in');
+    setTimeout(() => charEl.classList.remove('flip-in'), 400);
+  }, 180);
+
+  // Reading line (words mode only)
+  const readingEl = document.getElementById('card-reading');
+  readingEl.textContent = isWords ? `${card.reading}  /${card.romaji}/` : '';
+
+  // Hint prompt
+  document.getElementById('card-hint').textContent = isWords
+    ? 'What is the English meaning?'
+    : state.mode === 'kanji' ? 'What is the reading / meaning?' : 'What is the romaji reading?';
+
+  // Hint button + reveal
+  const hintBtn    = document.getElementById('btn-hint');
+  const hintReveal = document.getElementById('hint-reveal');
+  hintBtn.classList.toggle('visible', isWords);
+  hintBtn.textContent = '💡 Show Hint';
+  hintReveal.textContent = '';
+
+  // Sentence block hidden until answer
+  document.getElementById('sentence-block').classList.remove('show');
+
+  // Choices grid layout
+  document.getElementById('choices-grid').classList.toggle('word-choices', isWords);
+
+  // Build choices
+  const choices = getChoices(card, fullPool);
+  choices.forEach((ch, i) => {
+    const btn = document.getElementById('choice-' + i);
+    btn.className = 'choice-btn';
+    btn.disabled = false;
+    document.getElementById('cjp-' + i).textContent = '';
+    const romEl = document.getElementById('crom-' + i);
+    if (isWords) {
+      romEl.textContent = ch.meaning;
+      btn.dataset.correct = (ch.word === card.word) ? '1' : '0';
+    } else if (state.mode === 'kanji') {
+      romEl.textContent = ch.romaji + ' · ' + ch.meaning;
+      btn.dataset.correct = (ch.char === card.char) ? '1' : '0';
+    } else {
+      romEl.textContent = ch.romaji;
+      btn.dataset.correct = (ch.char === card.char) ? '1' : '0';
+    }
+    btn.dataset.romaji  = ch.romaji  || '';
+    btn.dataset.meaning = ch.meaning || '';
+  });
+
+  document.getElementById('feedback').className = 'feedback';
+  document.getElementById('btn-next').classList.remove('show');
+  state.answeredCorrect = false;
+}
+
+function handleChoice(btn) {
+  if (btn.disabled) return;
+  document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
+
+  const isCorrect = btn.dataset.correct === '1';
+  const card = state.deck[state.currentIndex];
+
+  if (isCorrect) {
+    btn.classList.add('correct');
+    state.score++;
+    showFeedback(true, card);
+  } else {
+    btn.classList.add('wrong');
+    document.querySelectorAll('.choice-btn').forEach(b => {
+      if (b.dataset.correct === '1') b.classList.add('correct');
+    });
+    state.missedCards.push(card);
+    showFeedback(false, card);
+  }
+
+  document.getElementById('live-score').textContent = state.score;
+  document.getElementById('btn-next').classList.add('show');
+}
+
+function showFeedback(correct, card) {
+  const fb     = document.getElementById('feedback');
+  const icon   = document.getElementById('fb-icon');
+  const main   = document.getElementById('fb-main');
+  const answer = document.getElementById('fb-answer');
+  const isWords = state.mode === 'words';
+
+  if (correct) {
+    fb.className = 'feedback correct-fb show';
+    icon.textContent = '✓';
+    main.textContent = 'Correct!';
+    answer.textContent = isWords ? `${card.word} = ${card.meaning}` : '';
+  } else {
+    fb.className = 'feedback wrong-fb show';
+    icon.textContent = '✗';
+    main.textContent = 'Incorrect';
+    if (isWords) {
+      answer.textContent = `Answer: ${card.word} (${card.reading}) = ${card.meaning}`;
+    } else if (state.mode === 'kanji') {
+      answer.textContent = `Answer: ${card.char} = ${card.romaji} · ${card.meaning}`;
+    } else {
+      answer.textContent = `Answer: ${card.char} = ${card.romaji}`;
+    }
+  }
+
+  // Show example sentence for words mode
+  if (isWords) {
+    document.getElementById('sentence-jp').textContent = card.sentence;
+    document.getElementById('sentence-en').textContent = card.sentenceEn;
+    document.getElementById('sentence-block').classList.add('show');
+    // Hide hint after answering
+    document.getElementById('hint-reveal').textContent = '';
+    document.getElementById('btn-hint').textContent = '💡 Show Hint';
+  }
+}
+
+function nextQuestion() {
+  state.currentIndex++;
+  if (state.currentIndex >= state.deck.length || state.quizEnded) {
+    endQuiz();
+  } else {
+    renderQuestion();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   END QUIZ & RESULTS
+═══════════════════════════════════════════════════════════════════ */
+function endQuiz(force = false) {
+  state.quizEnded = true;
+  const answered = force ? state.currentIndex : state.deck.length;
+  const correct  = state.score;
+  const wrong    = answered - correct;
+  const pct = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+
+  const xpGain   = correct * 3 + (pct >= 80 ? 10 : 0);
+  const prevLevel = getCurrentLevel();
+  state.xp += xpGain;
+  const newLevel  = getCurrentLevel();
+  const leveledUp = newLevel > prevLevel;
+
+  state.totalQuizzes++;
+  if (state.bestScore === null || pct > state.bestScore) state.bestScore = pct;
+  if (pct >= 70) state.currentStreak++; else state.currentStreak = 0;
+  save();
+
+  showScreen('screen-results');
+
+  let gradeJP = '🎌', gradeTitle = '', gradeSub = '';
+  if      (pct === 100) { gradeJP = '完璧'; gradeTitle = 'Perfect!';          gradeSub = 'Flawless score — excellent work!'; }
+  else if (pct >= 80)   { gradeJP = '優秀'; gradeTitle = 'Excellent!';        gradeSub = 'Great performance. Keep it up!'; }
+  else if (pct >= 60)   { gradeJP = '良い'; gradeTitle = 'Good Job!';         gradeSub = 'Solid effort. Review your misses.'; }
+  else if (pct >= 40)   { gradeJP = '頑張'; gradeTitle = 'Keep Going!';       gradeSub = 'Practice the missed words/characters.'; }
+  else                  { gradeJP = '練習'; gradeTitle = 'Keep Practicing';    gradeSub = 'Review the basics and try again!'; }
+
+  document.getElementById('result-jp').textContent    = gradeJP;
+  document.getElementById('result-title').textContent = gradeTitle;
+  document.getElementById('result-sub').textContent   = gradeSub;
+  document.getElementById('res-correct').textContent  = correct;
+  document.getElementById('res-wrong').textContent    = wrong;
+  document.getElementById('res-total').textContent    = answered;
+  document.getElementById('score-pct').textContent    = pct + '%';
+
+  const circumference = 326.7;
+  setTimeout(() => {
+    document.getElementById('score-ring-fill').style.strokeDashoffset =
+      circumference - (pct / 100) * circumference;
+  }, 100);
+
+  document.getElementById('result-grade').innerHTML =
+    `You got <strong>${correct} of ${answered}</strong> correct, earning <strong>+${xpGain} XP</strong>.`;
+
+  const lvBanner = document.getElementById('level-up-banner');
+  if (leveledUp) {
+    lvBanner.classList.add('show');
+    document.getElementById('level-up-text').textContent = `⭐ Level Up! You are now ${LEVELS[newLevel].name}`;
+    document.getElementById('level-up-sub').textContent  = `${LEVELS[newLevel].label} unlocked. Harder content awaits!`;
+  } else {
+    lvBanner.classList.remove('show');
+  }
+
+  const missedSec  = document.getElementById('missed-section');
+  const missedList = document.getElementById('missed-list');
+  missedList.innerHTML = '';
+  if (state.missedCards.length > 0) {
+    missedSec.style.display = '';
+    state.missedCards.slice(0, 12).forEach(card => {
+      const div = document.createElement('div');
+      div.className = 'missed-item';
+      if (state.mode === 'words') {
+        div.innerHTML = `
+          <span class="missed-char">${card.word}</span>
+          <div class="missed-info">
+            <strong>${card.reading}</strong> /${card.romaji}/<br>${card.meaning}
+          </div>`;
+      } else {
+        div.innerHTML = `
+          <span class="missed-char">${card.char}</span>
+          <div class="missed-info">
+            <strong>${card.romaji}</strong>
+            ${card.meaning ? `<br>${card.meaning}` : ''}
+          </div>`;
+      }
+      missedList.appendChild(div);
+    });
+  } else {
+    missedSec.style.display = 'none';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EVENT LISTENERS
+═══════════════════════════════════════════════════════════════════ */
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => { state.mode = btn.dataset.mode; renderHome(); save(); });
+});
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => { state.difficulty = Number(btn.dataset.diff); renderHome(); save(); });
+});
+document.querySelectorAll('.count-btn').forEach(btn => {
+  btn.addEventListener('click', () => { state.questionCount = Number(btn.dataset.count); renderHome(); save(); });
+});
+
+document.getElementById('btn-start').addEventListener('click', startQuiz);
+
+// Hint toggle
+document.getElementById('btn-hint').addEventListener('click', () => {
+  const card = state.deck[state.currentIndex];
+  if (!card) return;
+  const rev = document.getElementById('hint-reveal');
+  const btn = document.getElementById('btn-hint');
+  if (rev.textContent) { rev.textContent = ''; btn.textContent = '💡 Show Hint'; }
+  else                 { rev.textContent = card.hint; btn.textContent = 'Hide Hint'; }
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   TTS — Japanese Female Voice
+═══════════════════════════════════════════════════════════════════ */
+const tts = (() => {
+  if (!('speechSynthesis' in window)) return { speak: () => {} };
+  let femaleVoice = null;
+  function pickVoice() {
+    const voices = speechSynthesis.getVoices();
+    const jpVoices = voices.filter(v => v.lang.startsWith('ja'));
+    const female   = jpVoices.find(v => /female|kyoko|haruka|mizuki|hana|f0|woman/i.test(v.name));
+    femaleVoice = female || jpVoices[0] || null;
+  }
+  pickVoice();
+  speechSynthesis.addEventListener('voiceschanged', pickVoice);
+  function speak(text) {
+    speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang  = 'ja-JP';
+    utt.rate  = 0.88;
+    utt.pitch = 1.1;
+    if (femaleVoice) utt.voice = femaleVoice;
+    speechSynthesis.speak(utt);
+  }
+  return { speak };
+})();
+
+// Choices — TTS speaks JP word/character on click
+document.querySelectorAll('.choice-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const card = state.deck[state.currentIndex];
+    if (card) tts.speak(state.mode === 'words' ? card.word : card.char);
+    handleChoice(btn);
+  });
+});
+
+document.getElementById('btn-next').addEventListener('click', nextQuestion);
+
+document.getElementById('btn-end-quiz').addEventListener('click', () => {
+  if (confirm('End the quiz early and see results?')) endQuiz(true);
+});
+
+document.getElementById('btn-retry').addEventListener('click', startQuiz);
+
+document.getElementById('btn-home').addEventListener('click', () => {
+  renderHome();
+  showScreen('screen-home');
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════════ */
+load();
+renderHome();
+</script>
+
+</body>
+</html>
+
+  <!-- ═══════════════════════════════ RESULTS SCREEN ════════════════ -->
+  <section class="screen" id="screen-results">
+
+    <div class="result-card" id="result-card">
+      <div class="result-jp" id="result-jp">🎌</div>
+      <div class="result-title" id="result-title">Quiz Complete!</div>
+      <div class="result-sub" id="result-sub">Here's how you did</div>
+
+      <!-- Score ring -->
+      <div class="score-ring-wrap">
+        <div class="score-ring">
+          <svg viewBox="0 0 120 120" width="120" height="120">
+            <circle class="score-ring-track" cx="60" cy="60" r="52"/>
+            <circle class="score-ring-fill" id="score-ring-fill" cx="60" cy="60" r="52"
+              stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+          </svg>
+          <div class="score-ring-text">
+            <div class="score-pct" id="score-pct">0%</div>
+            <div class="score-pct-lbl">SCORE</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-item">
+          <div class="stat-val green" id="res-correct">0</div>
+          <div class="stat-lbl">Correct</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val red" id="res-wrong">0</div>
+          <div class="stat-lbl">Wrong</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val gold" id="res-total">0</div>
+          <div class="stat-lbl">Total</div>
+        </div>
+      </div>
+
+      <div class="result-grade" id="result-grade"></div>
+    </div>
+
+    <!-- Level up banner -->
+    <div class="level-up-banner" id="level-up-banner">
+      <div class="level-up-text" id="level-up-text">⭐ Level Up!</div>
+      <div class="level-up-sub" id="level-up-sub">Unlocked new difficulty</div>
+    </div>
+
+    <!-- Missed items -->
+    <div class="missed-section" id="missed-section">
+      <div class="missed-title">Review These :</div>
+      <div class="missed-list" id="missed-list"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="result-actions">
+      <button class="btn-primary" id="btn-retry">Play Again →</button>
+      <button class="btn-secondary" id="btn-home">← Back to Home</button>
+    </div>
+
+  </section>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   DATA SETS
+═══════════════════════════════════════════════════════════════════ */
+
+const HIRAGANA = [
+  // Vowels
+  { char: 'あ', romaji: 'a',   meaning: '' },
+  { char: 'い', romaji: 'i',   meaning: '' },
+  { char: 'う', romaji: 'u',   meaning: '' },
+  { char: 'え', romaji: 'e',   meaning: '' },
+  { char: 'お', romaji: 'o',   meaning: '' },
+  // K row
+  { char: 'か', romaji: 'ka',  meaning: '' },
+  { char: 'き', romaji: 'ki',  meaning: '' },
+  { char: 'く', romaji: 'ku',  meaning: '' },
+  { char: 'け', romaji: 'ke',  meaning: '' },
+  { char: 'こ', romaji: 'ko',  meaning: '' },
+  // S row
+  { char: 'さ', romaji: 'sa',  meaning: '' },
+  { char: 'し', romaji: 'shi', meaning: '' },
+  { char: 'す', romaji: 'su',  meaning: '' },
+  { char: 'せ', romaji: 'se',  meaning: '' },
+  { char: 'そ', romaji: 'so',  meaning: '' },
+  // T row
+  { char: 'た', romaji: 'ta',  meaning: '' },
+  { char: 'ち', romaji: 'chi', meaning: '' },
+  { char: 'つ', romaji: 'tsu', meaning: '' },
+  { char: 'て', romaji: 'te',  meaning: '' },
+  { char: 'と', romaji: 'to',  meaning: '' },
+  // N row
+  { char: 'な', romaji: 'na',  meaning: '' },
+  { char: 'に', romaji: 'ni',  meaning: '' },
+  { char: 'ぬ', romaji: 'nu',  meaning: '' },
+  { char: 'ね', romaji: 'ne',  meaning: '' },
+  { char: 'の', romaji: 'no',  meaning: '' },
+  // H row
+  { char: 'は', romaji: 'ha',  meaning: '' },
+  { char: 'ひ', romaji: 'hi',  meaning: '' },
+  { char: 'ふ', romaji: 'fu',  meaning: '' },
+  { char: 'へ', romaji: 'he',  meaning: '' },
+  { char: 'ほ', romaji: 'ho',  meaning: '' },
+  // M row
+  { char: 'ま', romaji: 'ma',  meaning: '' },
+  { char: 'み', romaji: 'mi',  meaning: '' },
+  { char: 'む', romaji: 'mu',  meaning: '' },
+  { char: 'め', romaji: 'me',  meaning: '' },
+  { char: 'も', romaji: 'mo',  meaning: '' },
+  // Y row
+  { char: 'や', romaji: 'ya',  meaning: '' },
+  { char: 'ゆ', romaji: 'yu',  meaning: '' },
+  { char: 'よ', romaji: 'yo',  meaning: '' },
+  // R row
+  { char: 'ら', romaji: 'ra',  meaning: '' },
+  { char: 'り', romaji: 'ri',  meaning: '' },
+  { char: 'る', romaji: 'ru',  meaning: '' },
+  { char: 'れ', romaji: 're',  meaning: '' },
+  { char: 'ろ', romaji: 'ro',  meaning: '' },
+  // W row + N
+  { char: 'わ', romaji: 'wa',  meaning: '' },
+  { char: 'を', romaji: 'wo',  meaning: '' },
+  { char: 'ん', romaji: 'n',   meaning: '' },
+  // Dakuten (hard mode)
+  { char: 'が', romaji: 'ga',  meaning: '' },
+  { char: 'ぎ', romaji: 'gi',  meaning: '' },
+  { char: 'ぐ', romaji: 'gu',  meaning: '' },
+  { char: 'げ', romaji: 'ge',  meaning: '' },
+  { char: 'ご', romaji: 'go',  meaning: '' },
+  { char: 'ざ', romaji: 'za',  meaning: '' },
+  { char: 'じ', romaji: 'ji',  meaning: '' },
+  { char: 'ず', romaji: 'zu',  meaning: '' },
+  { char: 'ぜ', romaji: 'ze',  meaning: '' },
+  { char: 'ぞ', romaji: 'zo',  meaning: '' },
+  { char: 'だ', romaji: 'da',  meaning: '' },
+  { char: 'で', romaji: 'de',  meaning: '' },
+  { char: 'ど', romaji: 'do',  meaning: '' },
+  { char: 'ば', romaji: 'ba',  meaning: '' },
+  { char: 'び', romaji: 'bi',  meaning: '' },
+  { char: 'ぶ', romaji: 'bu',  meaning: '' },
+  { char: 'べ', romaji: 'be',  meaning: '' },
+  { char: 'ぼ', romaji: 'bo',  meaning: '' },
+  { char: 'ぱ', romaji: 'pa',  meaning: '' },
+  { char: 'ぴ', romaji: 'pi',  meaning: '' },
+  { char: 'ぷ', romaji: 'pu',  meaning: '' },
+  { char: 'ぺ', romaji: 'pe',  meaning: '' },
+  { char: 'ぽ', romaji: 'po',  meaning: '' },
+];
+
+const KATAKANA = [
+  { char: 'ア', romaji: 'a',   meaning: '' },
+  { char: 'イ', romaji: 'i',   meaning: '' },
+  { char: 'ウ', romaji: 'u',   meaning: '' },
+  { char: 'エ', romaji: 'e',   meaning: '' },
+  { char: 'オ', romaji: 'o',   meaning: '' },
+  { char: 'カ', romaji: 'ka',  meaning: '' },
+  { char: 'キ', romaji: 'ki',  meaning: '' },
+  { char: 'ク', romaji: 'ku',  meaning: '' },
+  { char: 'ケ', romaji: 'ke',  meaning: '' },
+  { char: 'コ', romaji: 'ko',  meaning: '' },
+  { char: 'サ', romaji: 'sa',  meaning: '' },
+  { char: 'シ', romaji: 'shi', meaning: '' },
+  { char: 'ス', romaji: 'su',  meaning: '' },
+  { char: 'セ', romaji: 'se',  meaning: '' },
+  { char: 'ソ', romaji: 'so',  meaning: '' },
+  { char: 'タ', romaji: 'ta',  meaning: '' },
+  { char: 'チ', romaji: 'chi', meaning: '' },
+  { char: 'ツ', romaji: 'tsu', meaning: '' },
+  { char: 'テ', romaji: 'te',  meaning: '' },
+  { char: 'ト', romaji: 'to',  meaning: '' },
+  { char: 'ナ', romaji: 'na',  meaning: '' },
+  { char: 'ニ', romaji: 'ni',  meaning: '' },
+  { char: 'ヌ', romaji: 'nu',  meaning: '' },
+  { char: 'ネ', romaji: 'ne',  meaning: '' },
+  { char: 'ノ', romaji: 'no',  meaning: '' },
+  { char: 'ハ', romaji: 'ha',  meaning: '' },
+  { char: 'ヒ', romaji: 'hi',  meaning: '' },
+  { char: 'フ', romaji: 'fu',  meaning: '' },
+  { char: 'ヘ', romaji: 'he',  meaning: '' },
+  { char: 'ホ', romaji: 'ho',  meaning: '' },
+  { char: 'マ', romaji: 'ma',  meaning: '' },
+  { char: 'ミ', romaji: 'mi',  meaning: '' },
+  { char: 'ム', romaji: 'mu',  meaning: '' },
+  { char: 'メ', romaji: 'me',  meaning: '' },
+  { char: 'モ', romaji: 'mo',  meaning: '' },
+  { char: 'ヤ', romaji: 'ya',  meaning: '' },
+  { char: 'ユ', romaji: 'yu',  meaning: '' },
+  { char: 'ヨ', romaji: 'yo',  meaning: '' },
+  { char: 'ラ', romaji: 'ra',  meaning: '' },
+  { char: 'リ', romaji: 'ri',  meaning: '' },
+  { char: 'ル', romaji: 'ru',  meaning: '' },
+  { char: 'レ', romaji: 're',  meaning: '' },
+  { char: 'ロ', romaji: 'ro',  meaning: '' },
+  { char: 'ワ', romaji: 'wa',  meaning: '' },
+  { char: 'ヲ', romaji: 'wo',  meaning: '' },
+  { char: 'ン', romaji: 'n',   meaning: '' },
+  { char: 'ガ', romaji: 'ga',  meaning: '' },
+  { char: 'ギ', romaji: 'gi',  meaning: '' },
+  { char: 'グ', romaji: 'gu',  meaning: '' },
+  { char: 'ゲ', romaji: 'ge',  meaning: '' },
+  { char: 'ゴ', romaji: 'go',  meaning: '' },
+  { char: 'ザ', romaji: 'za',  meaning: '' },
+  { char: 'ジ', romaji: 'ji',  meaning: '' },
+  { char: 'ズ', romaji: 'zu',  meaning: '' },
+  { char: 'ゼ', romaji: 'ze',  meaning: '' },
+  { char: 'ゾ', romaji: 'zo',  meaning: '' },
+  { char: 'ダ', romaji: 'da',  meaning: '' },
+  { char: 'デ', romaji: 'de',  meaning: '' },
+  { char: 'ド', romaji: 'do',  meaning: '' },
+  { char: 'バ', romaji: 'ba',  meaning: '' },
+  { char: 'ビ', romaji: 'bi',  meaning: '' },
+  { char: 'ブ', romaji: 'bu',  meaning: '' },
+  { char: 'ベ', romaji: 'be',  meaning: '' },
+  { char: 'ボ', romaji: 'bo',  meaning: '' },
+  { char: 'パ', romaji: 'pa',  meaning: '' },
+  { char: 'ピ', romaji: 'pi',  meaning: '' },
+  { char: 'プ', romaji: 'pu',  meaning: '' },
+  { char: 'ペ', romaji: 'pe',  meaning: '' },
+  { char: 'ポ', romaji: 'po',  meaning: '' },
+];
+
+const KANJI = [
+  // JLPT N5 - Level 1 (Easy)
+  { char: '一', romaji: 'ichi',    meaning: 'one' },
+  { char: '二', romaji: 'ni',      meaning: 'two' },
+  { char: '三', romaji: 'san',     meaning: 'three' },
+  { char: '四', romaji: 'shi',     meaning: 'four' },
+  { char: '五', romaji: 'go',      meaning: 'five' },
+  { char: '六', romaji: 'roku',    meaning: 'six' },
+  { char: '七', romaji: 'shichi',  meaning: 'seven' },
+  { char: '八', romaji: 'hachi',   meaning: 'eight' },
+  { char: '九', romaji: 'ku',      meaning: 'nine' },
+  { char: '十', romaji: 'juu',     meaning: 'ten' },
+  { char: '百', romaji: 'hyaku',   meaning: 'hundred' },
+  { char: '千', romaji: 'sen',     meaning: 'thousand' },
+  { char: '万', romaji: 'man',     meaning: 'ten-thousand' },
+  { char: '日', romaji: 'nichi',   meaning: 'sun / day' },
+  { char: '月', romaji: 'tsuki',   meaning: 'moon / month' },
+  { char: '火', romaji: 'hi',      meaning: 'fire' },
+  { char: '水', romaji: 'mizu',    meaning: 'water' },
+  { char: '木', romaji: 'ki',      meaning: 'tree / wood' },
+  { char: '金', romaji: 'kin',     meaning: 'gold / money' },
+  { char: '土', romaji: 'tsuchi',  meaning: 'earth / soil' },
+  { char: '山', romaji: 'yama',    meaning: 'mountain' },
+  { char: '川', romaji: 'kawa',    meaning: 'river' },
+  { char: '田', romaji: 'ta',      meaning: 'rice field' },
+  { char: '人', romaji: 'hito',    meaning: 'person' },
+  { char: '口', romaji: 'kuchi',   meaning: 'mouth' },
+  // JLPT N5 - Level 2 (Medium)
+  { char: '手', romaji: 'te',      meaning: 'hand' },
+  { char: '足', romaji: 'ashi',    meaning: 'foot / leg' },
+  { char: '目', romaji: 'me',      meaning: 'eye' },
+  { char: '耳', romaji: 'mimi',    meaning: 'ear' },
+  { char: '上', romaji: 'ue',      meaning: 'up / above' },
+  { char: '下', romaji: 'shita',   meaning: 'down / below' },
+  { char: '左', romaji: 'hidari',  meaning: 'left' },
+  { char: '右', romaji: 'migi',    meaning: 'right' },
+  { char: '中', romaji: 'naka',    meaning: 'middle / inside' },
+  { char: '大', romaji: 'dai',     meaning: 'big / large' },
+  { char: '小', romaji: 'shou',    meaning: 'small / little' },
+  { char: '年', romaji: 'nen',     meaning: 'year' },
+  { char: '男', romaji: 'otoko',   meaning: 'man / male' },
+  { char: '女', romaji: 'onna',    meaning: 'woman / female' },
+  { char: '子', romaji: 'ko',      meaning: 'child' },
+  { char: '学', romaji: 'gaku',    meaning: 'study / learn' },
+  { char: '生', romaji: 'sei',     meaning: 'life / birth' },
+  { char: '先', romaji: 'sen',     meaning: 'before / ahead' },
+  { char: '校', romaji: 'kou',     meaning: 'school' },
+  { char: '国', romaji: 'kuni',    meaning: 'country / nation' },
+  // JLPT N4-N3 - Level 3 (Hard)
+  { char: '東', romaji: 'higashi', meaning: 'east' },
+  { char: '西', romaji: 'nishi',   meaning: 'west' },
+  { char: '南', romaji: 'minami',  meaning: 'south' },
+  { char: '北', romaji: 'kita',    meaning: 'north' },
+  { char: '語', romaji: 'go',      meaning: 'language' },
+  { char: '話', romaji: 'hanashi', meaning: 'talk / speech' },
+  { char: '食', romaji: 'shoku',   meaning: 'eat / food' },
+  { char: '飲', romaji: 'in',      meaning: 'drink' },
+  { char: '見', romaji: 'mi',      meaning: 'see / look' },
+  { char: '聞', romaji: 'kiku',    meaning: 'hear / listen' },
+  { char: '読', romaji: 'yomu',    meaning: 'read' },
+  { char: '書', romaji: 'kaku',    meaning: 'write' },
+  { char: '来', romaji: 'kuru',    meaning: 'come' },
+  { char: '行', romaji: 'iku',     meaning: 'go' },
+  { char: '時', romaji: 'toki',    meaning: 'time / hour' },
+  { char: '間', romaji: 'aida',    meaning: 'interval / between' },
+  { char: '電', romaji: 'den',     meaning: 'electricity' },
+  { char: '車', romaji: 'kuruma',  meaning: 'car / vehicle' },
+  { char: '気', romaji: 'ki',      meaning: 'spirit / energy' },
+  { char: '心', romaji: 'kokoro',  meaning: 'heart / mind' },
+];
+
+/* ═══════════════════════════════════════════════════════════════════
+   APP STATE
+═══════════════════════════════════════════════════════════════════ */
+
+const LEVELS = [
+  { name: 'Beginner',     label: 'Level 1', xpNeeded: 0   },
+  { name: 'Elementary',   label: 'Level 2', xpNeeded: 50  },
+  { name: 'Intermediate', label: 'Level 3', xpNeeded: 150 },
+  { name: 'Advanced',     label: 'Level 4', xpNeeded: 300 },
+  { name: 'Master',       label: 'Level 5', xpNeeded: 500 },
+];
+
+let state = {
+  mode: 'hiragana',
+  difficulty: 1,
+  questionCount: 10,
+  xp: 0,
+  totalQuizzes: 0,
+  bestScore: null,
+  currentStreak: 0,
+  // Per-quiz
+  deck: [],
+  currentIndex: 0,
+  score: 0,
+  answeredCorrect: false,
+  missedCards: [],
+  quizEnded: false,
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   PERSISTENCE
+═══════════════════════════════════════════════════════════════════ */
+function save() {
+  try {
+    localStorage.setItem('jpfc', JSON.stringify({
+      xp: state.xp,
+      totalQuizzes: state.totalQuizzes,
+      bestScore: state.bestScore,
+      currentStreak: state.currentStreak,
+      mode: state.mode,
+      difficulty: state.difficulty,
+      questionCount: state.questionCount,
+    }));
+  } catch(e) {}
+}
+
+function load() {
+  try {
+    const data = JSON.parse(localStorage.getItem('jpfc') || '{}');
+    if (data.xp !== undefined) state.xp = data.xp;
+    if (data.totalQuizzes !== undefined) state.totalQuizzes = data.totalQuizzes;
+    if (data.bestScore !== undefined) state.bestScore = data.bestScore;
+    if (data.currentStreak !== undefined) state.currentStreak = data.currentStreak;
+    if (data.mode) state.mode = data.mode;
+    if (data.difficulty) state.difficulty = data.difficulty;
+    if (data.questionCount) state.questionCount = data.questionCount;
+  } catch(e) {}
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════════════════════ */
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function getCurrentLevel() {
+  let lv = 0;
+  for (let i = LEVELS.length - 1; i >= 0; i--) {
+    if (state.xp >= LEVELS[i].xpNeeded) { lv = i; break; }
+  }
+  return lv;
+}
+
+function getDeckForSettings() {
+  let pool;
+  if (state.mode === 'hiragana') pool = HIRAGANA;
+  else if (state.mode === 'katakana') pool = KATAKANA;
+  else pool = KANJI;
+
+  // Slice by difficulty
+  const len = pool.length;
+  if (state.difficulty === 1) {
+    pool = pool.slice(0, Math.min(25, len));
+  } else if (state.difficulty === 2) {
+    pool = pool.slice(0, Math.min(46, len));
+  }
+  // difficulty 3 = full pool
+
+  return shuffle(pool).slice(0, state.questionCount);
+}
+
+function getChoices(correctCard, pool) {
+  // Pick 2 wrong choices from same pool
+  const wrong = shuffle(pool.filter(c => c.char !== correctCard.char));
+  const choices = shuffle([correctCard, wrong[0], wrong[1]]);
+  return choices;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SCREEN MANAGEMENT
+═══════════════════════════════════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HOME SCREEN
+═══════════════════════════════════════════════════════════════════ */
+function renderHome() {
+  // Mode buttons
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('selected', b.dataset.mode === state.mode);
+  });
+  // Difficulty
+  document.querySelectorAll('.diff-btn').forEach(b => {
+    b.classList.toggle('selected', Number(b.dataset.diff) === state.difficulty);
+  });
+  // Count
+  document.querySelectorAll('.count-btn').forEach(b => {
+    b.classList.toggle('selected', Number(b.dataset.count) === state.questionCount);
+  });
+  // Level
+  const lv = getCurrentLevel();
+  document.getElementById('home-level-name').textContent = LEVELS[lv].name;
+  document.getElementById('home-level-num').textContent = LEVELS[lv].label;
+  // Stats
+  document.getElementById('stat-total-quizzes').textContent = state.totalQuizzes;
+  document.getElementById('stat-best-score').textContent =
+    state.bestScore !== null ? state.bestScore + '%' : '—';
+  document.getElementById('stat-streak').textContent = state.currentStreak;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   QUIZ LOGIC
+═══════════════════════════════════════════════════════════════════ */
+let fullPool = [];
+
+function startQuiz() {
+  // Build pool for choices
+  if (state.mode === 'hiragana') fullPool = HIRAGANA;
+  else if (state.mode === 'katakana') fullPool = KATAKANA;
+  else fullPool = KANJI;
+
+  state.deck = getDeckForSettings();
+  state.currentIndex = 0;
+  state.score = 0;
+  state.missedCards = [];
+  state.quizEnded = false;
+
+  showScreen('screen-quiz');
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const card = state.deck[state.currentIndex];
+  const total = state.deck.length;
+  const idx = state.currentIndex;
+
+  // Top bar
+  document.getElementById('quiz-meta').textContent =
+    `Question ${idx + 1} of ${total}`;
+  document.getElementById('live-score').textContent = state.score;
+
+  // Progress bar
+  const pct = (idx / total) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+
+  // Card
+  document.getElementById('card-type-badge').textContent =
+    state.mode.charAt(0).toUpperCase() + state.mode.slice(1);
+
+  const charEl = document.getElementById('card-character');
+  charEl.classList.add('flip-out');
+  setTimeout(() => {
+    charEl.textContent = card.char;
+    charEl.classList.remove('flip-out');
+    charEl.classList.add('flip-in');
+    setTimeout(() => charEl.classList.remove('flip-in'), 400);
+  }, 180);
+
+  const hint = state.mode === 'kanji'
+    ? 'What is the reading / meaning?'
+    : 'What is the romaji reading?';
+  document.getElementById('card-hint').textContent = hint;
+
+  // Choices
+  const choices = getChoices(card, fullPool);
+  choices.forEach((ch, i) => {
+    const btn = document.getElementById('choice-' + i);
+    btn.className = 'choice-btn';
+    btn.disabled = false;
+    const jp = document.getElementById('cjp-' + i);
+    const rom = document.getElementById('crom-' + i);
+    jp.textContent = '';
+    if (state.mode === 'kanji') {
+      rom.textContent = ch.romaji + ' · ' + ch.meaning;
+    } else {
+      rom.textContent = ch.romaji;
+    }
+    btn.dataset.correct = (ch.char === card.char) ? '1' : '0';
+    btn.dataset.romaji = ch.romaji;
+    btn.dataset.meaning = ch.meaning || '';
+  });
+
+  // Reset feedback / next
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback';
+  document.getElementById('btn-next').classList.remove('show');
+
+  state.answeredCorrect = false;
+}
+
+function handleChoice(btn) {
+  if (btn.disabled) return;
+  // Disable all choices
+  document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
+
+  const isCorrect = btn.dataset.correct === '1';
+  const card = state.deck[state.currentIndex];
+
+  if (isCorrect) {
+    btn.classList.add('correct');
+    state.score++;
+    showFeedback(true, card);
+  } else {
+    btn.classList.add('wrong');
+    // Highlight correct one
+    document.querySelectorAll('.choice-btn').forEach(b => {
+      if (b.dataset.correct === '1') b.classList.add('correct');
+    });
+    state.missedCards.push(card);
+    showFeedback(false, card);
+  }
+
+  document.getElementById('live-score').textContent = state.score;
+  document.getElementById('btn-next').classList.add('show');
+}
+
+function showFeedback(correct, card) {
+  const fb = document.getElementById('feedback');
+  const icon = document.getElementById('fb-icon');
+  const main = document.getElementById('fb-main');
+  const answer = document.getElementById('fb-answer');
+
+  if (correct) {
+    fb.className = 'feedback correct-fb show';
+    icon.textContent = '✓';
+    main.textContent = 'Correct!';
+    answer.textContent = '';
+  } else {
+    fb.className = 'feedback wrong-fb show';
+    icon.textContent = '✗';
+    main.textContent = 'Incorrect';
+    const ans = state.mode === 'kanji'
+      ? `${card.char} = ${card.romaji} · ${card.meaning}`
+      : `${card.char} = ${card.romaji}`;
+    answer.textContent = `Answer: ${ans}`;
+  }
+}
+
+function nextQuestion() {
+  state.currentIndex++;
+  if (state.currentIndex >= state.deck.length || state.quizEnded) {
+    endQuiz();
+  } else {
+    renderQuestion();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   END QUIZ & RESULTS
+═══════════════════════════════════════════════════════════════════ */
+function endQuiz(force = false) {
+  state.quizEnded = true;
+  const total = state.currentIndex + (force ? 0 : 0);
+  const answered = force ? state.currentIndex : state.deck.length;
+  const correct = state.score;
+  const wrong = answered - correct;
+  const pct = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+
+  // XP gain
+  const xpGain = correct * 3 + (pct >= 80 ? 10 : 0);
+  const prevLevel = getCurrentLevel();
+  state.xp += xpGain;
+  const newLevel = getCurrentLevel();
+  const leveledUp = newLevel > prevLevel;
+
+  // Stats
+  state.totalQuizzes++;
+  if (state.bestScore === null || pct > state.bestScore) state.bestScore = pct;
+  if (pct >= 70) state.currentStreak++;
+  else state.currentStreak = 0;
+
+  save();
+
+  // Build results UI
+  showScreen('screen-results');
+
+  // Grade message
+  let gradeJP = '🎌', gradeTitle = '', gradeSub = '';
+  if (pct === 100)     { gradeJP = '完璧'; gradeTitle = 'Perfect!';     gradeSub = 'Flawless score — excellent work!'; }
+  else if (pct >= 80)  { gradeJP = '優秀'; gradeTitle = 'Excellent!';   gradeSub = 'Great performance. Keep it up!'; }
+  else if (pct >= 60)  { gradeJP = '良い'; gradeTitle = 'Good Job!';    gradeSub = 'Solid effort. Review your misses.'; }
+  else if (pct >= 40)  { gradeJP = '頑張'; gradeTitle = 'Keep Going!';  gradeSub = 'Practice the missed characters.'; }
+  else                  { gradeJP = '練習'; gradeTitle = 'Keep Practicing'; gradeSub = 'Review the basics and try again!'; }
+
+  document.getElementById('result-jp').textContent = gradeJP;
+  document.getElementById('result-title').textContent = gradeTitle;
+  document.getElementById('result-sub').textContent = gradeSub;
+
+  document.getElementById('res-correct').textContent = correct;
+  document.getElementById('res-wrong').textContent = wrong;
+  document.getElementById('res-total').textContent = answered;
+  document.getElementById('score-pct').textContent = pct + '%';
+
+  // Ring animation
+  const circumference = 326.7;
+  const offset = circumference - (pct / 100) * circumference;
+  setTimeout(() => {
+    document.getElementById('score-ring-fill').style.strokeDashoffset = offset;
+  }, 100);
+
+  // Grade text
+  const gradeEl = document.getElementById('result-grade');
+  gradeEl.innerHTML = `You got <strong>${correct} of ${answered}</strong> correct, earning <strong>+${xpGain} XP</strong>.`;
+
+  // Level up
+  const lvBanner = document.getElementById('level-up-banner');
+  if (leveledUp) {
+    lvBanner.classList.add('show');
+    document.getElementById('level-up-text').textContent = `⭐ Level Up! You are now ${LEVELS[newLevel].name}`;
+    document.getElementById('level-up-sub').textContent = `Auto-difficulty will increase. ${LEVELS[newLevel].label} unlocked.`;
+  } else {
+    lvBanner.classList.remove('show');
+  }
+
+  // Missed cards
+  const missedSec = document.getElementById('missed-section');
+  const missedList = document.getElementById('missed-list');
+  missedList.innerHTML = '';
+  if (state.missedCards.length > 0) {
+    missedSec.style.display = '';
+    state.missedCards.slice(0, 12).forEach(card => {
+      const div = document.createElement('div');
+      div.className = 'missed-item';
+      div.innerHTML = `
+        <span class="missed-char">${card.char}</span>
+        <div class="missed-info">
+          <strong>${card.romaji}</strong>
+          ${card.meaning ? `<br>${card.meaning}` : ''}
+        </div>`;
+      missedList.appendChild(div);
+    });
+  } else {
+    missedSec.style.display = 'none';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EVENT LISTENERS
+═══════════════════════════════════════════════════════════════════ */
+
+// Mode buttons
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.mode = btn.dataset.mode;
+    renderHome();
+    save();
+  });
+});
+
+// Difficulty buttons
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.difficulty = Number(btn.dataset.diff);
+    renderHome();
+    save();
+  });
+});
+
+// Count buttons
+document.querySelectorAll('.count-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.questionCount = Number(btn.dataset.count);
+    renderHome();
+    save();
+  });
+});
+
+// Start quiz
+document.getElementById('btn-start').addEventListener('click', startQuiz);
+
+/* ═══════════════════════════════════════════════════════════════════
+   TTS — Japanese Female Voice
+═══════════════════════════════════════════════════════════════════ */
+const tts = (() => {
+  if (!('speechSynthesis' in window)) return { speak: () => {} };
+
+  let femaleVoice = null;
+
+  function pickVoice() {
+    const voices = speechSynthesis.getVoices();
+    // Priority: female-labelled JP voices, then any JP voice
+    const jpVoices = voices.filter(v => v.lang.startsWith('ja'));
+    const female = jpVoices.find(v =>
+      /female|kyoko|haruka|mizuki|hana|f0|woman/i.test(v.name)
+    );
+    femaleVoice = female || jpVoices[0] || null;
+  }
+
+  // Voices may load async
+  pickVoice();
+  speechSynthesis.addEventListener('voiceschanged', pickVoice);
+
+  function speak(text) {
+    speechSynthesis.cancel(); // stop any ongoing utterance
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang = 'ja-JP';
+    utt.rate = 0.88;
+    utt.pitch = 1.1;
+    if (femaleVoice) utt.voice = femaleVoice;
+    speechSynthesis.speak(utt);
+  }
+
+  return { speak };
+})();
+
+// Choices
+document.querySelectorAll('.choice-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    // Speak the JP character shown on the current card
+    const card = state.deck[state.currentIndex];
+    if (card) tts.speak(card.char);
+    handleChoice(btn);
+  });
+});
+
+// Next
+document.getElementById('btn-next').addEventListener('click', nextQuestion);
+
+// End quiz early
+document.getElementById('btn-end-quiz').addEventListener('click', () => {
+  if (confirm('End the quiz early and see results?')) {
+    endQuiz(true);
+  }
+});
+
+// Retry
+document.getElementById('btn-retry').addEventListener('click', () => {
+  startQuiz();
+});
+
+// Home
+document.getElementById('btn-home').addEventListener('click', () => {
+  renderHome();
+  showScreen('screen-home');
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════════ */
+load();
+renderHome();
+</script>
+
+</body>
+</html>
