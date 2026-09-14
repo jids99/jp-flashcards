@@ -1,4 +1,4 @@
-﻿// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 // DATA — HIRAGANA
 // ═══════════════════════════════════════════════════
 const HIRAGANA=[
@@ -142,10 +142,20 @@ const LEVELS=[
   {name:'Advanced',    label:'Level 4',xpNeeded:300},
   {name:'Master',      label:'Level 5',xpNeeded:500},
 ];
-let state={mode:'hiragana',difficulty:1,questionCount:10,xp:0,totalQuizzes:0,bestScore:null,currentStreak:0,deck:[],currentIndex:0,score:0,missedCards:[],quizEnded:false};
+let state={mode:'hiragana',difficulty:1,questionCount:10,answerMode:'choice',xp:0,totalQuizzes:0,bestScore:null,currentStreak:0,deck:[],currentIndex:0,score:0,missedCards:[],quizEnded:false};
 
-function save(){try{localStorage.setItem('jpfc3',JSON.stringify({xp:state.xp,totalQuizzes:state.totalQuizzes,bestScore:state.bestScore,currentStreak:state.currentStreak,mode:state.mode,difficulty:state.difficulty,questionCount:state.questionCount}));}catch(e){}}
-function load(){try{const d=JSON.parse(localStorage.getItem('jpfc3')||'{}');if(d.xp!==undefined)state.xp=d.xp;if(d.totalQuizzes!==undefined)state.totalQuizzes=d.totalQuizzes;if(d.bestScore!==undefined)state.bestScore=d.bestScore;if(d.currentStreak!==undefined)state.currentStreak=d.currentStreak;if(d.mode)state.mode=d.mode;if(d.difficulty)state.difficulty=d.difficulty;if(d.questionCount)state.questionCount=d.questionCount;}catch(e){}}
+function save(){try{localStorage.setItem('jpfc3',JSON.stringify({xp:state.xp,totalQuizzes:state.totalQuizzes,bestScore:state.bestScore,currentStreak:state.currentStreak,mode:state.mode,difficulty:state.difficulty,questionCount:state.questionCount,answerMode:state.answerMode}));}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem('jpfc3')||'{}');if(d.xp!==undefined)state.xp=d.xp;if(d.totalQuizzes!==undefined)state.totalQuizzes=d.totalQuizzes;if(d.bestScore!==undefined)state.bestScore=d.bestScore;if(d.currentStreak!==undefined)state.currentStreak=d.currentStreak;if(d.mode)state.mode=d.mode;if(d.difficulty)state.difficulty=d.difficulty;if(d.questionCount)state.questionCount=d.questionCount;if(d.answerMode)state.answerMode=d.answerMode;}catch(e){}}
+
+// Normalize romaji to canonical form for flexible matching
+// Accepts legacy hepburn alternatives: ti=chi, tu=tsu, si=shi, hu=fu, di=ji, du=zu, etc.
+function normalizeRomaji(s){
+  return s.trim().toLowerCase()
+    .replace(/ti/g,'chi').replace(/tu/g,'tsu').replace(/si/g,'shi')
+    .replace(/hu/g,'fu').replace(/di/g,'ji').replace(/du/g,'zu')
+    .replace(/wi/g,'i').replace(/we/g,'e')
+    .replace(/\s+/g,' ');
+}
 
 function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}return r;}
 function getCurrentLevel(){let lv=0;for(let i=LEVELS.length-1;i>=0;i--){if(state.xp>=LEVELS[i].xpNeeded){lv=i;break;}}return lv;}
@@ -174,6 +184,7 @@ function renderHome(){
   ['diff-badge-1','diff-badge-2','diff-badge-3'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.textContent=dl[i];});
   document.querySelectorAll('.diff-btn').forEach(b=>b.classList.toggle('selected',Number(b.dataset.diff)===state.difficulty));
   document.querySelectorAll('.count-btn').forEach(b=>b.classList.toggle('selected',Number(b.dataset.count)===state.questionCount));
+  document.querySelectorAll('.ans-mode-btn').forEach(b=>b.classList.toggle('selected',b.dataset.ans===state.answerMode));
   const lv=getCurrentLevel();
   document.getElementById('home-level-name').textContent=LEVELS[lv].name;
   document.getElementById('home-level-num').textContent=LEVELS[lv].label;
@@ -214,17 +225,33 @@ function renderQuestion(){
   hintBtn.textContent='💡 Show Hint';
   hintReveal.textContent='';
   document.getElementById('sentence-block').classList.remove('show');
-  document.getElementById('choices-grid').classList.toggle('word-choices',isW);
-  const choices=getChoices(card);
-  choices.forEach((ch,i)=>{
-    const btn=document.getElementById('choice-'+i);
-    btn.className='choice-btn';btn.disabled=false;
-    document.getElementById('cjp-'+i).textContent='';
-    const romEl=document.getElementById('crom-'+i);
-    if(isW){romEl.textContent=ch.meaning;btn.dataset.correct=(ch.word===card.word)?'1':'0';}
-    else if(state.mode==='kanji'){romEl.textContent=ch.romaji+' · '+ch.meaning;btn.dataset.correct=(ch.char===card.char)?'1':'0';}
-    else{romEl.textContent=ch.romaji;btn.dataset.correct=(ch.char===card.char)?'1':'0';}
-  });
+  // Show/hide choices vs typing input
+  const isTyping=state.answerMode==='type';
+  document.getElementById('choices-grid').style.display=isTyping?'none':'';
+  document.getElementById('typing-block').classList.toggle('show',isTyping);
+  if(isTyping){
+    const inp=document.getElementById('type-input');
+    inp.value='';
+    inp.className='type-input';
+    inp.disabled=false;
+    document.getElementById('type-submit').disabled=false;
+    // Update placeholder to reflect what's expected
+    const isW2=state.mode==='words';
+    const isK=state.mode==='kanji';
+    inp.placeholder=isW2?'Type the English meaning\u2026':isK?'Type romaji or meaning\u2026':'Type romaji (e.g. ru, chi, tsu)\u2026';
+    setTimeout(()=>inp.focus(),220);
+  } else {
+    const choices=getChoices(card);
+    choices.forEach((ch,i)=>{
+      const btn=document.getElementById('choice-'+i);
+      btn.className='choice-btn';btn.disabled=false;
+      document.getElementById('cjp-'+i).textContent='';
+      const romEl=document.getElementById('crom-'+i);
+      if(isW){romEl.textContent=ch.meaning;btn.dataset.correct=(ch.word===card.word)?'1':'0';}
+      else if(state.mode==='kanji'){romEl.textContent=ch.romaji+' \u00b7 '+ch.meaning;btn.dataset.correct=(ch.char===card.char)?'1':'0';}
+      else{romEl.textContent=ch.romaji;btn.dataset.correct=(ch.char===card.char)?'1':'0';}
+    });
+  }
   document.getElementById('feedback').className='feedback';
   document.getElementById('btn-next').classList.remove('show');
 }
@@ -236,6 +263,46 @@ function handleChoice(btn){
   const card=state.deck[state.currentIndex];
   if(isCorrect){btn.classList.add('correct');state.score++;showFeedback(true,card);}
   else{btn.classList.add('wrong');document.querySelectorAll('.choice-btn').forEach(b=>{if(b.dataset.correct==='1')b.classList.add('correct');});state.missedCards.push(card);showFeedback(false,card);}
+  document.getElementById('live-score').textContent=state.score;
+  document.getElementById('btn-next').classList.add('show');
+}
+
+function handleTyping(){
+  const inp=document.getElementById('type-input');
+  const raw=inp.value;
+  if(!raw.trim())return;
+  const card=state.deck[state.currentIndex];
+  const isW=state.mode==='words';
+  const isK=state.mode==='kanji';
+  let correct=false;
+  const typed=normalizeRomaji(raw);
+  if(isW){
+    // For words mode accept exact meaning match (case-insensitive, ignore minor punctuation)
+    const target=card.meaning.toLowerCase().replace(/[\/\-]/g,' ').replace(/\s+/g,' ').trim();
+    const typed2=raw.trim().toLowerCase().replace(/[\/\-]/g,' ').replace(/\s+/g,' ');
+    correct=typed2===target||
+            target.split('/').map(s=>s.trim()).includes(typed2)||
+            card.meaning.toLowerCase()===raw.trim().toLowerCase();
+  } else if(isK){
+    // Kanji: accept romaji OR english meaning
+    const romajiOk=normalizeRomaji(card.romaji)===typed;
+    const meaningOk=card.meaning.toLowerCase().split(' / ').map(s=>s.trim()).includes(raw.trim().toLowerCase());
+    correct=romajiOk||meaningOk;
+  } else {
+    // Hiragana / Katakana: romaji only, with alias normalization
+    correct=normalizeRomaji(card.romaji)===typed;
+  }
+
+  // TTS: speak the character
+  tts.speak(isW?card.word:card.char);
+
+  // Visual feedback on input
+  inp.className='type-input '+(correct?'correct-input':'wrong-input');
+  inp.disabled=true;
+  document.getElementById('type-submit').disabled=true;
+
+  if(correct){state.score++;showFeedback(true,card);}
+  else{state.missedCards.push(card);showFeedback(false,card);}
   document.getElementById('live-score').textContent=state.score;
   document.getElementById('btn-next').classList.add('show');
 }
@@ -335,6 +402,10 @@ const tts=(()=>{
 document.querySelectorAll('.mode-btn').forEach(btn=>{btn.addEventListener('click',()=>{state.mode=btn.dataset.mode;renderHome();save();});});
 document.querySelectorAll('.diff-btn').forEach(btn=>{btn.addEventListener('click',()=>{state.difficulty=Number(btn.dataset.diff);renderHome();save();});});
 document.querySelectorAll('.count-btn').forEach(btn=>{btn.addEventListener('click',()=>{state.questionCount=Number(btn.dataset.count);renderHome();save();});});
+// Answer mode toggle
+document.querySelectorAll('.ans-mode-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{state.answerMode=btn.dataset.ans;renderHome();save();});
+});
 document.getElementById('btn-start').addEventListener('click',startQuiz);
 document.getElementById('btn-hint').addEventListener('click',()=>{
   const card=state.deck[state.currentIndex];if(!card)return;
@@ -348,6 +419,11 @@ document.querySelectorAll('.choice-btn').forEach(btn=>{
     if(card)tts.speak(state.mode==='words'?card.word:card.char);
     handleChoice(btn);
   });
+});
+// Typing mode: submit button + Enter key
+document.getElementById('type-submit').addEventListener('click',handleTyping);
+document.getElementById('type-input').addEventListener('keydown',(e)=>{
+  if(e.key==='Enter'){e.preventDefault();handleTyping();}
 });
 document.getElementById('btn-next').addEventListener('click',nextQuestion);
 document.getElementById('btn-end-quiz').addEventListener('click',()=>{if(confirm('End the quiz early and see results?'))endQuiz(true);});
