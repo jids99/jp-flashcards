@@ -135,6 +135,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .type-submit{width:100%;padding:14px;background:var(--accent);border:none;border-radius:var(--r);color:#1a1208;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;letter-spacing:.06em;cursor:pointer;transition:var(--tr);box-shadow:0 2px 12px var(--accent-glow)}
 .type-submit:hover{filter:brightness(1.08);transform:translateY(-1px)}
 .type-submit:disabled{opacity:.4;cursor:default;transform:none}
+/* Action slot: Check Answer + Next occupy the same space */
+.action-slot{position:relative;width:100%;height:50px}
+.action-slot .type-submit,.action-slot .btn-next-typing{position:absolute;inset:0;width:100%;height:100%;margin:0;transition:opacity .2s ease,transform .2s ease}
+.action-slot .btn-next-typing{opacity:0;pointer-events:none;transform:translateY(4px);border:1px solid var(--accent);background:transparent;color:var(--accent);font-family:'Inter',sans-serif;font-size:14px;font-weight:500;letter-spacing:.06em;border-radius:var(--r);cursor:pointer;box-shadow:none}
+.action-slot .btn-next-typing.show{opacity:1;pointer-events:all;transform:translateY(0)}
+.action-slot .btn-next-typing:hover{background:var(--accent-dim)}
 /* Recall: answer revealed */
 .recall-answer{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;display:none;flex-direction:column;gap:4px;text-align:center}
 .recall-answer.show{display:flex}
@@ -288,14 +294,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   <!-- Typing -->
   <div class="typing-block" id="typing-block">
     <input class="type-input" id="type-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Type your answer…"/>
-    <button class="type-submit" id="type-submit">Check Answer ↵</button>
+    <div class="action-slot">
+      <button class="type-submit" id="type-submit">Check Answer ↵</button>
+      <button class="btn-next btn-next-typing" id="btn-next-typing">Next →</button>
+    </div>
   </div>
 
   <div class="feedback" id="feedback">
     <span class="fb-icon" id="fb-icon"></span>
     <div><div id="fb-main"></div><div class="fb-answer" id="fb-answer"></div></div>
   </div>
-  <button class="btn-next" id="btn-next">Next →</button>
+  <button class="btn-next btn-next-choice" id="btn-next">Next →</button>
   <button class="btn-end" id="btn-end-quiz">End Quiz</button>
 </section>
 
@@ -633,13 +642,16 @@ function renderQuestion(){
   // Feedback reset
   document.getElementById('feedback').className='feedback';
   document.getElementById('btn-next').classList.remove('show');
+  document.getElementById('btn-next-typing').classList.remove('show');
 
   // Show/hide choices vs typing
   const choicesGrid=document.getElementById('choices-grid');
   const typingBlock=document.getElementById('typing-block');
+  const choiceNext=document.getElementById('btn-next');
   if(useTyping){
     choicesGrid.style.display='none';
     typingBlock.classList.add('show');
+    choiceNext.style.display='none'; // hidden — btn-next-typing is used instead
     const inp=document.getElementById('type-input');
     inp.value='';inp.className='type-input';inp.disabled=false;
     document.getElementById('type-submit').disabled=false;
@@ -651,6 +663,7 @@ function renderQuestion(){
   } else {
     choicesGrid.style.display='';
     typingBlock.classList.remove('show');
+    choiceNext.style.display=''; // visible (starts opacity:0 until answered)
     // Word choices layout
     choicesGrid.classList.toggle('word-choices',isW);
     const choices=getChoices(card);
@@ -675,7 +688,7 @@ function handleChoice(btn){
   if(isCorrect){btn.classList.add('correct');state.score++;showFeedback(true,card);}
   else{btn.classList.add('wrong');document.querySelectorAll('.choice-btn').forEach(b=>{if(b.dataset.correct==='1')b.classList.add('correct');});state.missedCards.push(card);showFeedback(false,card);}
   document.getElementById('live-score').textContent=state.score;
-  document.getElementById('btn-next').classList.add('show');
+  document.getElementById('btn-next').classList.add('show'); // choice mode
 }
 
 function handleTyping(){
@@ -710,7 +723,7 @@ function handleTyping(){
   if(correct){state.score++;showFeedback(true,card);}
   else{state.missedCards.push(card);showFeedback(false,card);}
   document.getElementById('live-score').textContent=state.score;
-  document.getElementById('btn-next').classList.add('show');
+  document.getElementById('btn-next-typing').classList.add('show'); // typing mode
 }
 
 function showFeedback(correct,card){
@@ -847,6 +860,7 @@ document.querySelectorAll('.choice-btn').forEach(btn=>{
 document.getElementById('type-submit').addEventListener('click',handleTyping);
 document.getElementById('type-input').addEventListener('keydown',(e)=>{if(e.key==='Enter'){e.preventDefault();handleTyping();}});
 document.getElementById('btn-next').addEventListener('click',nextQuestion);
+document.getElementById('btn-next-typing').addEventListener('click',nextQuestion);
 document.getElementById('btn-end-quiz').addEventListener('click',()=>{if(confirm('End the quiz early and see results?'))endQuiz(true);});
 document.getElementById('btn-retry').addEventListener('click',startQuiz);
 document.getElementById('btn-home').addEventListener('click',()=>{renderHome();showScreen('screen-home');});
